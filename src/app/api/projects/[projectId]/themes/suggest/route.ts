@@ -5,7 +5,7 @@ import { openai } from '@/lib/ai'
 
 // Batch size: how many codes to send per AI call to avoid context-window limits.
 // We increase this to 2000 to allow the AI to see ALL unassigned codes at once for a holistic analysis.
-const MAX_CODES_PER_BATCH = 400
+const MAX_CODES_PER_BATCH = 500
 
 // POST /api/projects/[projectId]/themes/suggest — AI suggests theme groupings
 export async function POST(
