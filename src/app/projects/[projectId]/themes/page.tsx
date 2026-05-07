@@ -503,6 +503,10 @@ export default function ThemesPage() {
     const [pendingCodes, setPendingCodes] = useState<PendingRow[]>([])
     const [pendingCodesLoading, setPendingCodesLoading] = useState(false)
     const [pendingAcceptingAll, setPendingAcceptingAll] = useState(false)
+    
+    // Inline editing for Mass Review table
+    const [editingRowId, setEditingRowId] = useState<string | null>(null)
+    const [editingLabel, setEditingLabel] = useState('')
 
     const fetchPendingCodes = useCallback(async () => {
         setPendingCodesLoading(true)
@@ -526,22 +530,36 @@ export default function ThemesPage() {
         }
     }, [activeTab, pendingCodesLoaded, fetchPendingCodes])
 
-    const handleCompareDecision = async (row: PendingRow, action: 'ACCEPT' | 'REJECT' | 'RESTORE') => {
+    const handleCompareDecision = async (row: PendingRow, action: 'ACCEPT' | 'REJECT' | 'RESTORE' | 'OVERRIDE', customLabel?: string) => {
         try {
             await fetch(`/api/segments/${row.segmentId}/review`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, newLabel: row.suggestion.label, suggestionId: row.suggestion.id })
+                body: JSON.stringify({ action, customLabel, suggestionId: row.suggestion.id })
             })
             // Update local state to reflect new status
             setPendingCodes(prev => prev.map(r => {
                 if (r.segmentId === row.segmentId) {
-                    const newStatus = action === 'ACCEPT' ? 'APPROVED' : action === 'REJECT' ? 'REJECTED' : 'SUGGESTED';
-                    return { ...r, suggestion: { ...r.suggestion, status: newStatus } };
+                    const newStatus = action === 'ACCEPT' ? 'APPROVED' : action === 'REJECT' ? 'REJECTED' : action === 'OVERRIDE' ? 'MODIFIED' : 'SUGGESTED';
+                    return { 
+                        ...r, 
+                        suggestion: { 
+                            ...r.suggestion, 
+                            status: newStatus,
+                            label: customLabel || r.suggestion.label
+                        } 
+                    };
                 }
                 return r;
             }))
-        } catch (e) { console.error(e) }
+            
+            // If it was an edit, close the edit mode
+            if (action === 'OVERRIDE') {
+                setEditingRowId(null)
+            }
+        } catch (error) {
+            console.error('Failed to save review decision:', error)
+        }
     }
 
     const handleAcceptAllPending = async () => {
@@ -1460,11 +1478,56 @@ Rules:
                                             return (
                                                 <tr key={row.segmentId} className="hover:bg-indigo-50/20 transition-colors bg-white group">
                                                     <td className="px-6 py-4 align-top">
-                                                        <div className="flex flex-col gap-1.5 items-start">
-                                                            <span className="inline-flex text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded text-[11px] font-bold max-w-[200px] whitespace-normal">{row.suggestion.label}</span>
-                                                            {!row.isHuman && conf > 0 && <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded w-fit ${confBg}`}>{conf}%</span>}
-                                                            {row.isHuman && <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider bg-purple-100 text-purple-700 w-fit">HUMAN</span>}
-                                                        </div>
+                                                        {editingRowId === row.segmentId ? (
+                                                            <div className="flex flex-col gap-2 items-start bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={editingLabel} 
+                                                                    onChange={e => setEditingLabel(e.target.value)} 
+                                                                    autoFocus
+                                                                    onKeyDown={e => {
+                                                                        if (e.key === 'Enter' && editingLabel.trim()) handleCompareDecision(row, 'OVERRIDE', editingLabel.trim())
+                                                                        if (e.key === 'Escape') setEditingRowId(null)
+                                                                    }}
+                                                                    className="text-[11px] font-bold px-2.5 py-1.5 border border-indigo-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full"
+                                                                />
+                                                                <div className="flex items-center gap-1.5 w-full">
+                                                                    <button 
+                                                                        onClick={() => editingLabel.trim() && handleCompareDecision(row, 'OVERRIDE', editingLabel.trim())} 
+                                                                        className="flex-1 text-[10px] bg-emerald-600 text-white font-bold px-2 py-1.5 rounded hover:bg-emerald-700 transition"
+                                                                    >
+                                                                        Save & Accept
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => setEditingRowId(null)} 
+                                                                        className="text-[10px] text-slate-500 font-bold px-2 py-1.5 border border-slate-200 rounded hover:bg-white transition"
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-1.5 items-start group/label relative">
+                                                                <div className="flex items-start gap-1">
+                                                                    <span className="inline-flex text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded text-[11px] font-bold max-w-[200px] whitespace-normal">
+                                                                        {row.suggestion.label}
+                                                                    </span>
+                                                                    {(!isAccepted && row.suggestion.status !== 'REJECTED') && (
+                                                                        <button 
+                                                                            onClick={() => { setEditingRowId(row.segmentId); setEditingLabel(row.suggestion.label); }}
+                                                                            className="opacity-0 group-hover/label:opacity-100 p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all"
+                                                                            title="Edit AI code before accepting"
+                                                                        >
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex gap-1 items-center">
+                                                                    {!row.isHuman && conf > 0 && <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded w-fit ${confBg}`}>{conf}%</span>}
+                                                                    {row.isHuman && <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider bg-purple-100 text-purple-700 w-fit">HUMAN</span>}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-4 align-top">
                                                         {(() => {
