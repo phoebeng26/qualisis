@@ -20,6 +20,7 @@ export async function POST(
         const rawThemes = await prisma.theme.findMany({
             where: { projectId: params.projectId, status: { not: 'MERGED' } },
             include: {
+                relationsOut: { where: { relationType: 'SUBTHEME_OF' } },
                 codeLinks: {
                     include: {
                         codebookEntry: {
@@ -58,15 +59,31 @@ export async function POST(
             }).join('\n\n')
         }
 
-        // 4. Build flat theme summary for prompt
-        const themesSummary = rawThemes.map(theme =>
-            `## Theme: ${theme.name}\nDescription: ${theme.description || '(no description)'}\n\nCodes:\n${formatCodes(theme)}`
-        ).join('\n\n---\n\n')
+        // 4. Build hierarchical theme summary for prompt
+        const standaloneThemes = rawThemes.filter(t => t.relationsOut.length === 0)
+        
+        const themesSummary = standaloneThemes.map(parentTheme => {
+            // Find children (where this parent is the target of a SUBTHEME_OF relation)
+            const children = rawThemes.filter(child => 
+                child.relationsOut.some(r => r.targetId === parentTheme.id)
+            )
+            
+            let block = `## Mega-Theme / Primary Theme: ${parentTheme.name}\nDescription: ${parentTheme.description || '(no description)'}\n\nCodes (direct):\n${formatCodes(parentTheme)}\n`
+            
+            if (children.length > 0) {
+                block += `\n### Sub-Themes under "${parentTheme.name}":\n`
+                children.forEach(child => {
+                    block += `#### Sub-Theme: ${child.name}\nDescription: ${child.description}\nCodes:\n${formatCodes(child)}\n\n`
+                })
+            }
+            return block
+        }).join('\n\n---\n\n')
 
         const researchQuestions = project.researchQuestion || '(not specified)'
 
         const systemPrompt = `You are an expert qualitative researcher writing the "Thematic Findings" section of an academic research report. 
 Write in a scholarly but accessible tone. Use first person plural ("we found", "the analysis revealed").
+Your PRIMARY GOAL is to directly answer the provided RESEARCH QUESTION. Do not just summarize the data; explain what the data means in the context of the Research Question.
 Always embed verbatim quotes from participants to evidence each point. 
 Format output in clean Markdown with clear headings.`
 
@@ -74,37 +91,37 @@ Format output in clean Markdown with clear headings.`
 
 PROJECT: ${project.name}
 TOPIC: ${project.description || '(see project name)'}
-RESEARCH QUESTION:
+RESEARCH QUESTION (Highest Priority):
 ${researchQuestions}
 
-CODEBOOK DATA:
+CODEBOOK DATA (Hierarchical Mega-Themes & Sub-Themes):
 ${themesSummary}
 
 ---
 
 Instructions:
-1. Write an INTRODUCTION paragraph (2-3 sentences) framing the overall findings
-2. For each theme, write a FULL narrative paragraph (100-200 words) that:
-   - States what the theme represents and its significance
-   - Weaves in 2-3 verbatim participant quotes as evidence (format: *"quote text"* [ParticipantName])
-   - Explains how the codes within the theme relate to each other
-   - Links back to the research question if relevant
-3. Write a SYNTHESIS paragraph (3-4 sentences) identifying cross-cutting patterns across themes
+1. Write an INTRODUCTION paragraph (2-3 sentences) framing the overall findings as a direct response to the Research Question.
+2. For each Mega-Theme / Primary Theme, write a FULL narrative section that:
+   - Explains the core insight of this Mega-Theme and how it answers the Research Question.
+   - If it has Sub-Themes, weave their findings into the narrative cohesively (do not just list them).
+   - Weaves in 3-5 verbatim participant quotes as evidence (format: *"quote text"* [ParticipantName]).
+3. Write a SYNTHESIS paragraph (3-4 sentences) identifying cross-cutting patterns across all Mega-Themes.
 4. Use this exact heading structure:
    - # Thematic Findings
-   - ## 1. [Theme Name]
+   - ## 1. [Mega-Theme Name]
+      (narrative text...)
    - ## Synthesis and Cross-Cutting Patterns
 
-Be specific, analytical, and evidence-based. Do NOT invent quotes — use only those provided above.`
+Be highly analytical. Do NOT invent quotes — use only those provided above.`
 
         // 5. Call OpenAI
         const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: 'gpt-4o',
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ],
-            temperature: 0.7,
+            temperature: 0.4,
             max_tokens: 4000,
         })
 
