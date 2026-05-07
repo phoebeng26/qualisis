@@ -311,6 +311,8 @@ interface ThemeCanvasInnerProps {
     aiSuggestions?: any[]
     onAcceptSuggestion?: (name: string) => void
     onRejectSuggestion?: (name: string) => void
+    onAcceptAllSuggestions?: () => void
+    acceptingAllSuggestions?: boolean
     onDismissAllSuggestions?: () => void
     suggestionsLoading?: boolean
     suggestionsRemainingAfterBatch?: number
@@ -320,7 +322,7 @@ interface ThemeCanvasInnerProps {
 function ThemeCanvasInner({
     themes, draggingCodeId, draggingFromThemeId,
     onDropCode, onDropOnCanvas, onEdit, onDelete, onRemoveCode, onPositionSave, onCreateTheme,
-    onDragStartCode, onDragEndCode, aiSuggestions = [], onAcceptSuggestion, onRejectSuggestion,
+    onDragStartCode, onDragEndCode, aiSuggestions = [], onAcceptSuggestion, onRejectSuggestion, onAcceptAllSuggestions, acceptingAllSuggestions,
     onDismissAllSuggestions, suggestionsLoading = false, suggestionsRemainingAfterBatch = 0, onLoadNextBatch
 }: ThemeCanvasInnerProps) {
     const { screenToFlowPosition } = useReactFlow()
@@ -480,6 +482,19 @@ function ThemeCanvasInner({
                                             <span className="text-[11px] font-medium text-slate-500">Review on the canvas</span>
                                         </div>
                                     </div>
+                                    <div className="w-px h-8 bg-slate-200"></div>
+                                    <button
+                                        onClick={onAcceptAllSuggestions}
+                                        disabled={acceptingAllSuggestions}
+                                        className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-[12px] font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                                        title="Accept all suggestions at once"
+                                    >
+                                        {acceptingAllSuggestions ? (
+                                            <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Accepting...</>
+                                        ) : (
+                                            <><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Accept All</>
+                                        )}
+                                    </button>
                                     {suggestionsRemainingAfterBatch > 0 && (
                                         <>
                                             <div className="w-px h-8 bg-slate-200"></div>
@@ -545,6 +560,8 @@ interface ThemeCanvasProps {
     aiSuggestions?: any[]
     onAcceptSuggestion?: (name: string) => void
     onRejectSuggestion?: (name: string) => void
+    onAcceptAllSuggestions?: () => void
+    acceptingAllSuggestions?: boolean
     onDismissAllSuggestions?: () => void
     suggestionsLoading?: boolean
     suggestionsRemainingAfterBatch?: number

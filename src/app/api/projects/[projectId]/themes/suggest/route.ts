@@ -4,8 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { openai } from '@/lib/ai'
 
 // Batch size: how many codes to send per AI call to avoid context-window limits.
-// gpt-4o-mini context is ~128k tokens. 80 codes × ~200 tokens = ~16k — safe.
-const MAX_CODES_PER_BATCH = 80
+// We increase this to 2000 to allow the AI to see ALL unassigned codes at once for a holistic analysis.
+const MAX_CODES_PER_BATCH = 2000
 
 // POST /api/projects/[projectId]/themes/suggest — AI suggests theme groupings
 export async function POST(
@@ -113,7 +113,7 @@ export async function POST(
 
         const userInstructions = (customPrompt as string | undefined)?.trim() || ''
 
-        const prompt = `You are a senior qualitative researcher grouping codes into themes (thematic analysis, Steps 3-4).
+        const prompt = `You are a senior qualitative researcher performing Thematic Analysis (Steps 3-4).
 
 Project: "${project?.name || 'Research Project'}"
 ${project?.researchQuestion ? `Research Question: ${project.researchQuestion}` : ''}
@@ -121,20 +121,22 @@ ${project?.researchQuestion ? `Research Question: ${project.researchQuestion}` :
 EXISTING THEMES (do NOT recreate these; only reuse exact name if a code clearly belongs there):
 ${existingThemesSummary}
 
-You are processing batch ${batchStart + 1}–${batchStart + batchCodes.length} of ${allUnassigned.length} total unassigned codes:
+You are processing ALL ${allUnassigned.length} unassigned codes:
 ${codesSummary}
-${remainingAfterBatch > 0 ? `\nNOTE: There are ${remainingAfterBatch} more codes in subsequent batches. Focus on grouping AS MANY of the above codes as possible.` : ''}
+
+Your task is to review the ENTIRE list of codes above and synthesize them into a reasonable, manageable number of high-level overarching themes (e.g., 4 to 12 themes) that directly answer the Research Question.
 
 RULES:
-1. SELECTIVE & COHESIVE GROUPING: Do NOT force codes into themes if they do not fit perfectly. It is completely fine to leave codes out. Prioritize high-quality, tightly connected groups over exhaustive grouping.
-2. MUTUALLY EXCLUSIVE THEMES: Each theme must capture a distinctly different phenomenon. There should be NO overlapping concepts between your suggested themes.
-3. Theme name = a plain-English sentence stating the finding directly (e.g. "Users distrust AI because it feels opaque"). No jargon words like "Dynamics", "Patterns", "Collaboration".
-4. Each code may appear in at most ONE theme.
-5. Minimum 2 codes per theme. No upper limit on codes per theme.
-6. If a code clearly belongs to an existing theme listed above, use that EXACT theme name.
-7. "Researcher Observation" and "Human Created" codes are EQUALLY VALID for grouping — treat them the same as AI-Assisted codes. Do NOT skip them just because they have 0 instances.
-${Array.isArray(rejectedNames) && rejectedNames.length > 0 ? `7. REJECTED by user — DO NOT use or recreate: ${(rejectedNames as string[]).map((n: string) => `"${n}"`).join(', ')}` : ''}
-${userInstructions ? `${Array.isArray(rejectedNames) && rejectedNames.length > 0 ? '8' : '7'}. EXTRA INSTRUCTIONS: ${userInstructions}` : ''}
+1. HOLISTIC GROUPING: Look at the big picture. Group codes into broad, conceptually rich themes rather than hyper-specific micro-themes. Do not split similar codes into too many small themes.
+2. SELECTIVE & COHESIVE: Do NOT force codes into themes if they do not fit perfectly. It is completely fine to leave outlier codes out. Prioritize high-quality, tightly connected groups.
+3. MUTUALLY EXCLUSIVE THEMES: Each theme must capture a distinctly different phenomenon. There should be NO overlapping concepts between your suggested themes.
+4. Theme name = a plain-English, descriptive phrase or short sentence stating the finding directly (e.g. "Users distrust AI because it feels opaque"). No generic jargon like "Dynamics", "Patterns", "Collaboration".
+5. Each code may appear in at most ONE theme.
+6. Minimum 2 codes per theme, but aim for larger, more meaningful groups. No upper limit on codes per theme.
+7. If a code clearly belongs to an existing theme listed above, use that EXACT theme name.
+8. "Researcher Observation" and "Human Created" codes are EQUALLY VALID for grouping — treat them the same as AI-Assisted codes. Do NOT skip them just because they have 0 instances.
+${Array.isArray(rejectedNames) && rejectedNames.length > 0 ? `9. REJECTED by user — DO NOT use or recreate: ${(rejectedNames as string[]).map((n: string) => `"${n}"`).join(', ')}` : ''}
+${userInstructions ? `${Array.isArray(rejectedNames) && rejectedNames.length > 0 ? '10' : '9'}. EXTRA INSTRUCTIONS: ${userInstructions}` : ''}
 
 Return ONLY a JSON array (no markdown, no explanation):
 [

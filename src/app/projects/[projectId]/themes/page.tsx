@@ -485,6 +485,7 @@ export default function ThemesPage() {
     const [suggestionsRemainingAfterBatch, setSuggestionsRemainingAfterBatch] = useState(0)
     const [suggestionBatchOffset, setSuggestionBatchOffset] = useState(0)
     const [suggestionsTotalUnassigned, setSuggestionsTotalUnassigned] = useState(0)
+    const [acceptingAllSuggestions, setAcceptingAllSuggestions] = useState(false)
     // Selected theme in Thematic Map for drill-down
     const [mapSelectedTheme, setMapSelectedTheme] = useState<ThemeData | null>(null)
 
@@ -1106,6 +1107,13 @@ Rules:
             return
         }
 
+        // Calculate a nice position based on the suggestion's index
+        const index = themeSuggestions.findIndex(s => s.name === suggestionName)
+        const maxExistingY = themes.reduce((max, t, i) => Math.max(max, (t as any).positionY ?? (Math.floor(i / 4) * 380 + 40)), -400)
+        const startY = themes.length > 0 ? maxExistingY + 440 : 40;
+        const x = (index % 3) * 380 + 100;
+        const y = Math.floor(index / 3) * 380 + startY;
+
         setAcceptingId(suggestionName)
         try {
             const res = await fetch(`/api/projects/${projectId}/themes`, {
@@ -1114,7 +1122,9 @@ Rules:
                 body: JSON.stringify({
                     name: suggestion.name,
                     description: suggestion.description,
-                    codeIds: activeCodeIdsInSuggestion
+                    codeIds: activeCodeIdsInSuggestion,
+                    positionX: x,
+                    positionY: y
                 })
             })
 
@@ -1139,6 +1149,53 @@ Rules:
         } finally {
             setAcceptingId(null)
         }
+    }
+
+    const acceptAllSuggestions = async () => {
+        setAcceptingAllSuggestions(true)
+        
+        let maxExistingY = themes.reduce((max, t, i) => Math.max(max, (t as any).positionY ?? (Math.floor(i / 4) * 380 + 40)), -400)
+        const startY = themes.length > 0 ? maxExistingY + 440 : 40;
+        
+        const suggestionsToAccept = [...themeSuggestions]
+        let successCount = 0
+
+        for (let i = 0; i < suggestionsToAccept.length; i++) {
+            const suggestion = suggestionsToAccept[i]
+            const codeIds = suggestion.codes.map((c: any) => c.id)
+            const activeCodeIdsInSuggestion = unassignedCodes.filter(c => codeIds.includes(c.id)).map(c => c.id)
+
+            if (activeCodeIdsInSuggestion.length === 0) {
+                continue;
+            }
+
+            const x = (i % 3) * 380 + 100;
+            const y = Math.floor(i / 3) * 380 + startY;
+
+            try {
+                const res = await fetch(`/api/projects/${projectId}/themes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: suggestion.name,
+                        description: suggestion.description,
+                        codeIds: activeCodeIdsInSuggestion,
+                        positionX: x,
+                        positionY: y
+                    })
+                })
+                if (res.ok) {
+                    successCount++;
+                }
+            } catch (e) {
+                console.error("Failed to accept suggestion in batch", e)
+            }
+        }
+        
+        setThemeSuggestions([])
+        clearSuggestionsCache()
+        await fetchData()
+        setAcceptingAllSuggestions(false)
     }
 
     const rejectSuggestion = (name: string) => {
@@ -1786,6 +1843,8 @@ Rules:
                             aiSuggestions={themeSuggestions}
                             onAcceptSuggestion={acceptSuggestion}
                             onRejectSuggestion={rejectSuggestion}
+                            onAcceptAllSuggestions={acceptAllSuggestions}
+                            acceptingAllSuggestions={acceptingAllSuggestions}
                             onDismissAllSuggestions={() => {
                                 setThemeSuggestions([])
                                 clearSuggestionsCache()
