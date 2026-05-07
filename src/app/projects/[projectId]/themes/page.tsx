@@ -1457,12 +1457,12 @@ Rules:
                                 <table className="w-full text-left border-collapse">
                                     <thead className="bg-white sticky top-0 z-10 shadow-sm border-b border-slate-200">
                                         <tr>
+                                            <th className="px-6 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest w-[12%]">Transcript</th>
+                                            <th className="px-4 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest w-[38%]">Excerpt</th>
                                             <th className="px-6 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest w-[18%]">AI Code</th>
                                             <th className="px-4 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest w-[12%]">
                                                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block"/>Your Code</span>
                                             </th>
-                                            <th className="px-4 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest w-[12%]">Transcript</th>
-                                            <th className="px-6 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest w-[38%]">Excerpt</th>
                                             <th className="px-4 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest w-[20%] text-center">Actions</th>
                                         </tr>
                                     </thead>
@@ -1477,6 +1477,20 @@ Rules:
                                             const isMatch = humanLabel && (row.suggestion.label.toLowerCase().includes(humanLabel.toLowerCase()) || humanLabel.toLowerCase().includes(row.suggestion.label.toLowerCase()))
                                             return (
                                                 <tr key={row.segmentId} className="hover:bg-indigo-50/20 transition-colors bg-white group">
+                                                    {/* 1. Transcript */}
+                                                    <td className="px-4 py-4 align-top">
+                                                        <a href={`/projects/${projectId}/transcripts/${row.transcriptId}?segment=${row.segmentId}`} target="_blank" className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-1" title="Jump to this highlight in the transcript">
+                                                            {row.transcriptTitle}
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h6"/></svg>
+                                                        </a>
+                                                    </td>
+                                                    
+                                                    {/* 2. Excerpt */}
+                                                    <td className="px-6 py-4 align-top">
+                                                        <p className="text-[12px] text-slate-600 leading-relaxed italic line-clamp-3 group-hover:line-clamp-none transition-all">"{row.text}"</p>
+                                                    </td>
+
+                                                    {/* 3. AI Code */}
                                                     <td className="px-6 py-4 align-top">
                                                         {editingRowId === row.segmentId ? (
                                                             <div className="flex flex-col gap-2 items-start bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
@@ -1529,6 +1543,8 @@ Rules:
                                                             </div>
                                                         )}
                                                     </td>
+
+                                                    {/* 4. Your Code */}
                                                     <td className="px-4 py-4 align-top">
                                                         {(() => {
                                                             // Case 1: Human-only segment (no AI suggestions at all)
@@ -1587,15 +1603,8 @@ Rules:
                                                             )
                                                         })()}
                                                     </td>
-                                                    <td className="px-4 py-4 align-top">
-                                                        <a href={`/projects/${projectId}/transcripts/${row.transcriptId}?segment=${row.segmentId}`} target="_blank" className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-1" title="Jump to this highlight in the transcript">
-                                                            {row.transcriptTitle}
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h6"/></svg>
-                                                        </a>
-                                                    </td>
-                                                    <td className="px-6 py-4 align-top">
-                                                        <p className="text-[12px] text-slate-600 leading-relaxed italic line-clamp-3 group-hover:line-clamp-none transition-all">"{row.text}"</p>
-                                                    </td>
+
+                                                    {/* 5. Actions */}
                                                     <td className="px-4 py-4 align-top">
                                                         {row.isHuman ? (
                                                             <div className="flex justify-center">
