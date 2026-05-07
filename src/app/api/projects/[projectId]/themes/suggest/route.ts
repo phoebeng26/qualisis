@@ -108,7 +108,7 @@ export async function POST(
         ])
 
         const existingThemesSummary = existingThemes.length > 0
-            ? existingThemes.map((t: any) => `- "${t.name}"`).join('\n')
+            ? existingThemes.map((t: any) => `- "${t.name}": ${t.description || 'No description'}`).join('\n')
             : 'None yet.'
 
         const userInstructions = (customPrompt as string | undefined)?.trim() || ''
