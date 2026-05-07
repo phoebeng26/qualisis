@@ -1341,13 +1341,12 @@ Rules:
                             </button>
 
                             <button
-                                onClick={handleSynthesize}
-                                disabled={themes.length < 3}
-                                className="flex items-center gap-1.5 bg-violet-50 text-violet-700 border border-violet-200 px-4 py-2.5 rounded-lg text-sm font-bold shadow-sm hover:bg-violet-100 hover:border-violet-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Let AI analyze existing themes and merge similar ones together"
+                                onClick={() => setNewThemeModal({ open: true, name: '', description: '', id: undefined })}
+                                className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-700 transition-all"
+                                title="Create a new theme manually"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
-                                Merge Themes (AI)
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                New Theme
                             </button>
                         </div>
                     </div>

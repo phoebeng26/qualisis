@@ -440,25 +440,6 @@ function ThemeCanvasInner({
                 <Controls className="!shadow-sm !border !border-slate-200 !rounded-xl overflow-hidden" showInteractive={false} />
                 <MiniMap nodeColor="#6366f1" maskColor="rgba(241,245,249,0.7)" className="!rounded-xl !border !border-slate-200 !shadow-sm" />
 
-                {/* Always-visible FAB — top-right of canvas */}
-                <Panel position="top-right">
-                    <button
-                        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-[13px] font-bold px-4 py-2.5 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
-                        onClick={() => {
-                            const cx = window.innerWidth / 2
-                            const cy = window.innerHeight / 2
-                            const containerRect = containerRef.current?.getBoundingClientRect()
-                            const sx = containerRect ? cx - containerRect.left : cx
-                            const sy = containerRect ? cy - containerRect.top : cy
-                            const flowPos = screenToFlowPosition({ x: cx, y: cy })
-                            setPendingCreate({ sx, sy, fx: flowPos.x, fy: flowPos.y })
-                        }}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                        New Theme
-                    </button>
-                </Panel>
-
                 {/* AI Suggestions Control Panel */}
                 {(suggestionsLoading || suggestionsRemainingAfterBatch > 0 || (aiSuggestions && aiSuggestions.length > 0)) && (
                     <Panel position="bottom-center" className="mb-4">
