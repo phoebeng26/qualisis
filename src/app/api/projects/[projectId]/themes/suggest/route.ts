@@ -5,7 +5,7 @@ import { openai } from '@/lib/ai'
 
 // Batch size: how many codes to send per AI call to avoid context-window limits.
 // We increase this to 2000 to allow the AI to see ALL unassigned codes at once for a holistic analysis.
-const MAX_CODES_PER_BATCH = 500
+const MAX_CODES_PER_BATCH = 100
 
 // POST /api/projects/[projectId]/themes/suggest — AI suggests theme groupings
 export async function POST(
@@ -121,7 +121,7 @@ ${project?.researchQuestion ? `Research Question: "${project.researchQuestion}"`
 EXISTING THEMES (do NOT recreate; only reuse exact name if a code clearly fits there):
 ${existingThemesSummary}
 
-Below is the COMPLETE list of ${allUnassigned.length} unassigned codes you MUST work with:
+Below is the COMPLETE list of ${batchCodes.length} unassigned codes you MUST work with:
 ${codesSummary}
 
 YOUR TASK:
@@ -140,7 +140,7 @@ RULES (follow strictly):
 ${Array.isArray(rejectedNames) && rejectedNames.length > 0 ? `10. REJECTED — DO NOT use or recreate: ${(rejectedNames as string[]).map((n: string) => `"${n}"`).join(', ')}` : ''}
 ${userInstructions ? `${Array.isArray(rejectedNames) && rejectedNames.length > 0 ? '11' : '10'}. EXTRA INSTRUCTIONS (Highest Priority): ${userInstructions}` : ''}
 
-Before outputting, verify: have you included ALL ${allUnassigned.length} codes? Is every theme name a full sentence?
+Before outputting, verify: have you included ALL ${batchCodes.length} codes? Is every theme name a full sentence?
 
 Return ONLY a JSON array (no markdown, no explanation). Crucially, to save space, output the CODE NUMBERS (the index from the list above) in "codeIndexes", NOT the names:
 [
@@ -218,30 +218,13 @@ Return ONLY a JSON array (no markdown, no explanation). Crucially, to save space
 
             let finalSuggestions: any[] = enriched.filter((s: any) => s.codes?.length >= 2)
 
-            // Safety net: find any codes the AI missed and add a catch-all theme
+            // Calculate how many codes were actually covered
             const assignedIds = new Set<string>(
                 finalSuggestions.flatMap((s: any) => s.codes.map((c: any) => c.id))
             )
-            const missedCodes = batchCodes
-                .filter((c: any) => !assignedIds.has(c.id))
-                .map((c: any) => ({ id: c.id, name: c.name, instances: c._count.codeAssignments, type: c.type }))
+            const missedCodes = batchCodes.filter((c: any) => !assignedIds.has(c.id))
 
-            if (missedCodes.length === 1 && finalSuggestions.length > 0) {
-                // Only 1 missed — add to the smallest existing theme
-                const smallestIdx = finalSuggestions.reduce((minIdx: number, s: any, idx: number, arr: any[]) =>
-                    s.codes.length < arr[minIdx].codes.length ? idx : minIdx, 0)
-                finalSuggestions[smallestIdx].codes.push(missedCodes[0])
-            } else if (missedCodes.length >= 2) {
-                finalSuggestions.push({
-                    name: 'Other emerging patterns',
-                    description: 'These codes did not fit clearly into the main themes but still reflect important emerging patterns worth reviewing.',
-                    reason: 'Automatically grouped as a safety-net catch-all for codes not matched to other themes.',
-                    confidenceScore: 50,
-                    codes: missedCodes
-                })
-            }
-
-            console.log(`[Suggest] ${finalSuggestions.length} themes | ${batchCodes.length - missedCodes.length} codes covered | ${missedCodes.length} in catch-all`)
+            console.log(`[Suggest] ${finalSuggestions.length} themes | ${batchCodes.length - missedCodes.length} codes covered | ${missedCodes.length} skipped by AI`)
 
             // If AI is too strict/lazy and returns nothing at all, fallback to heuristic
             if (finalSuggestions.length === 0) {
