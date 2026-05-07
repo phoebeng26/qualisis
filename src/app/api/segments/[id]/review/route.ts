@@ -60,7 +60,10 @@ export async function POST(
 
         await prisma.aISuggestion.update({
             where: { id: suggestionId },
-            data: { status: newStatus }
+            data: { 
+                status: newStatus,
+                ...(action === 'OVERRIDE' && customLabel ? { label: customLabel } : {})
+            }
         })
 
         // If ACCEPT or OVERRIDE: create/update CodeAssignment
