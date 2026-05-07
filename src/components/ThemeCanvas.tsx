@@ -459,7 +459,7 @@ function ThemeCanvasInner({
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-extrabold text-slate-800">{aiSuggestions?.length || 0} Suggestions Ready</span>
+                                            <span className="text-sm font-extrabold text-slate-800">{aiSuggestions?.length || 0} Theme Suggestions Ready</span>
                                             <span className="text-[11px] font-medium text-slate-500">Review on the canvas</span>
                                         </div>
                                     </div>
@@ -483,7 +483,7 @@ function ThemeCanvasInner({
                                                 onClick={onLoadNextBatch}
                                                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-bold px-4 py-2 rounded-xl transition-all shadow-sm"
                                             >
-                                                Analyze next {Math.min(80, suggestionsRemainingAfterBatch)} codes
+                                                Analyze next {Math.min(100, suggestionsRemainingAfterBatch)} codes
                                             </button>
                                         </>
                                     )}

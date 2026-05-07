@@ -48,6 +48,7 @@ export async function POST(
         //    - Not actively linked to any NON-MERGED theme
         //      (codes whose only theme links are to MERGED themes can be re-grouped)
         const allUnassigned = codebookEntries
+            .filter(c => c.type === 'OBSERVATION' || c._count.codeAssignments > 0)
             .filter(c =>
                 !c.themeLinks.some((tl: any) => tl.theme.status !== 'MERGED')
             )
