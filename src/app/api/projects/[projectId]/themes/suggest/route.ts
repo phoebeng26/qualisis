@@ -84,15 +84,14 @@ export async function POST(
             return hasAI ? 'AI-Assisted' : 'Human Created'
         }
 
-        const codesSummary = batchCodes.map(code => {
-            const examples = useLongFormat
-                ? code.codeAssignments
-                    .map((a: any) => `"${a.segment.text.slice(0, 100)}"`)
-                    .join('; ')
-                : ''
-            return `- "${code.name}" (${code._count.codeAssignments}× used, ${humanReadableType(code)})${
-                code.definition ? ` — ${(code.definition as string).slice(0, 100)}` : ''
-            }${examples ? ` | e.g. ${examples}` : ''}`
+        const codesSummary = batchCodes.map((code, idx) => {
+            const examples = code.codeAssignments
+                .slice(0, 2)
+                .map((a: any) => `"${a.segment.text.slice(0, 120)}"`)
+                .join('; ')
+            return `${idx + 1}. "${code.name}" (${code._count.codeAssignments}× used, ${humanReadableType(code)})${
+                code.definition ? ` — ${(code.definition as string).slice(0, 120)}` : ''
+            }${examples ? `\n   e.g. ${examples}` : ''}`
         }).join('\n')
 
         // 4. Get project context and existing themes
@@ -113,39 +112,42 @@ export async function POST(
 
         const userInstructions = (customPrompt as string | undefined)?.trim() || ''
 
-        const prompt = `You are a senior qualitative researcher performing Thematic Analysis (Steps 3-4).
+        const prompt = `You are a senior qualitative researcher performing Reflexive Thematic Analysis (Phase 3: Searching for Themes).
 
 Project: "${project?.name || 'Research Project'}"
-${project?.researchQuestion ? `Research Question: ${project.researchQuestion}` : ''}
+${project?.researchQuestion ? `Research Question: "${project.researchQuestion}"` : ''}
 
-EXISTING THEMES (do NOT recreate these; only reuse exact name if a code clearly belongs there):
+EXISTING THEMES (do NOT recreate; only reuse exact name if a code clearly fits there):
 ${existingThemesSummary}
 
-You are processing ALL ${allUnassigned.length} unassigned codes:
+Below is the COMPLETE list of ${allUnassigned.length} unassigned codes you MUST work with:
 ${codesSummary}
 
-Your task is to review the ENTIRE list of codes above and synthesize them into a reasonable, manageable number of high-level overarching themes (e.g., 4 to 12 themes) that directly answer the Research Question.
+YOUR TASK:
+Group the codes above into a set of overarching themes (aim for 4–12) that directly address the Research Question. You MUST attempt to assign EVERY code to a theme — if a code is an outlier, create a broad "catch-all" theme for it rather than omitting it.
 
-RULES:
-1. HOLISTIC GROUPING: Look at the big picture. Group codes into broad, conceptually rich themes rather than hyper-specific micro-themes. Do not split similar codes into too many small themes.
-2. SELECTIVE & COHESIVE: Do NOT force codes into themes if they do not fit perfectly. It is completely fine to leave outlier codes out. Prioritize high-quality, tightly connected groups.
-3. MUTUALLY EXCLUSIVE THEMES: Each theme must capture a distinctly different phenomenon. There should be NO overlapping concepts between your suggested themes.
-4. Theme name = a plain-English, descriptive phrase or short sentence stating the finding directly (e.g. "Users distrust AI because it feels opaque"). No generic jargon like "Dynamics", "Patterns", "Collaboration".
-5. Each code may appear in at most ONE theme.
-6. Minimum 2 codes per theme, but aim for larger, more meaningful groups. No upper limit on codes per theme.
-7. If a code clearly belongs to an existing theme listed above, use that EXACT theme name.
-8. "Researcher Observation" and "Human Created" codes are EQUALLY VALID for grouping — treat them the same as AI-Assisted codes. Do NOT skip them just because they have 0 instances.
-${Array.isArray(rejectedNames) && rejectedNames.length > 0 ? `9. REJECTED by user — DO NOT use or recreate: ${(rejectedNames as string[]).map((n: string) => `"${n}"`).join(', ')}` : ''}
+RULES (follow strictly):
+1. EXHAUSTIVE COVERAGE: EVERY code in the numbered list above must appear in your output. Do not skip any code. If a code does not fit neatly, create a broad residual theme (e.g. "Other emerging patterns") to capture it.
+2. HOLISTIC GROUPING: Think about the big picture first. Prefer fewer, broader themes over many narrow micro-themes. Merge similar codes into the same theme.
+3. MUTUALLY EXCLUSIVE: Each theme must address a distinctly different phenomenon. No conceptual overlap between themes.
+4. Theme name = a plain-English phrase stating the core finding (e.g. "Users feel unsafe sharing personal data"). Avoid generic words like "Dynamics", "Issues", "Challenges", "Patterns".
+5. Each code may appear in AT MOST ONE theme.
+6. Minimum 2 codes per theme. No upper limit.
+7. If a code clearly belongs to an existing theme, use that EXACT existing theme name.
+8. "Researcher Observation" and "Human Created" codes are EQUALLY VALID — treat them the same as AI-Assisted codes.
+${Array.isArray(rejectedNames) && rejectedNames.length > 0 ? `9. REJECTED — DO NOT use or recreate: ${(rejectedNames as string[]).map((n: string) => `"${n}"`).join(', ')}` : ''}
 ${userInstructions ? `${Array.isArray(rejectedNames) && rejectedNames.length > 0 ? '10' : '9'}. EXTRA INSTRUCTIONS: ${userInstructions}` : ''}
+
+Before outputting, verify: have you included ALL ${allUnassigned.length} codes? If not, add the missing ones to an existing or new theme.
 
 Return ONLY a JSON array (no markdown, no explanation):
 [
   {
-    "name": "Theme name sentence",
-    "description": "2-3 sentences: what exactly is this theme about?",
-    "reason": "Why are these codes grouped together? What pattern is revealed?",
-    "confidenceScore": 80,
-    "codeNames": ["Exact code name from the list above", "Another exact code name"]
+    "name": "Theme name",
+    "description": "2-3 sentences: what exactly is this theme about and how it answers the Research Question?",
+    "reason": "Why are these specific codes grouped together?",
+    "confidenceScore": 85,
+    "codeNames": ["Exact code name from the numbered list", "Another exact code name"]
   }
 ]`
 
@@ -161,9 +163,8 @@ Return ONLY a JSON array (no markdown, no explanation):
         }
 
         const response = await openai.chat.completions.create({
-            // Fallback to gpt-4o-mini to save cost (per user request)
-            model: 'gpt-4o-mini',
-            temperature: 0.3,
+            model: 'gpt-4o',
+            temperature: 0.2,
             messages: [{ role: 'user', content: prompt }],
         })
 
