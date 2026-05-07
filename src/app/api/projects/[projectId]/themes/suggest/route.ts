@@ -1,7 +1,7 @@
 export const maxDuration = 60; // Max allowed for Vercel Hobby
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { openai, anthropic } from '@/lib/ai'
+import { openai } from '@/lib/ai'
 
 // Batch size: how many codes to send per AI call to avoid context-window limits.
 // We increase this to 2000 to allow the AI to see ALL unassigned codes at once for a holistic analysis.
@@ -155,7 +155,7 @@ Return ONLY a JSON array (no markdown, no explanation). Crucially, to save space
 ]`
 
         // 5. Call AI
-        if (!openai && !anthropic) {
+        if (!openai) {
             return NextResponse.json({
                 suggestions: generateFallbackSuggestions(batchCodes),
                 source: 'heuristic',
@@ -165,27 +165,14 @@ Return ONLY a JSON array (no markdown, no explanation). Crucially, to save space
             })
         }
 
-        let raw = '[]'
-        
-        if (anthropic) {
-            console.log('Using Claude 3 Haiku for Theme Suggestion')
-            const response = await anthropic.messages.create({
-                model: 'claude-3-haiku-20240307',
-                max_tokens: 8000,
-                temperature: 0.2,
-                messages: [{ role: 'user', content: prompt }],
-            })
-            raw = response.content[0]?.type === 'text' ? response.content[0].text : '[]'
-        } else {
-            console.log('Using GPT-4o for Theme Suggestion (Claude not available)')
-            const response = await openai!.chat.completions.create({
-                model: 'gpt-4o',
-                temperature: 0.2,
-                max_tokens: 8000,
-                messages: [{ role: 'user', content: prompt }],
-            })
-            raw = response.choices[0]?.message?.content ?? '[]'
-        }
+        console.log('Using GPT-4o for Theme Suggestion')
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            temperature: 0.2,
+            max_tokens: 8000,
+            messages: [{ role: 'user', content: prompt }],
+        })
+        const raw = response.choices[0]?.message?.content ?? '[]'
 
         const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
