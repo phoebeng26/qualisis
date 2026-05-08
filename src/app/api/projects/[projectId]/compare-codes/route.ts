@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: { params: { projectId: stri
     try {
         // Fetch all existing themes for this project (for theme hint matching)
         const existingThemes = await prisma.theme.findMany({
-            where: { projectId: params.projectId, parentId: null }, // top-level themes only
+            where: { projectId: params.projectId },
             select: { id: true, name: true }
         })
 
