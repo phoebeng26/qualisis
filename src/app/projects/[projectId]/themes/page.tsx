@@ -620,12 +620,8 @@ export default function ThemesPage() {
             })
             const data = await res.json()
             if (data.suggestions?.length > 0) {
+                // Just show suggestions — user must explicitly click one to select
                 setRowThemeSuggestions(prev => ({ ...prev, [row.segmentId]: data.suggestions }))
-                // Auto-pre-select the first existing match if any
-                const firstExisting = data.suggestions.find((s: any) => s.isExisting && s.themeId)
-                if (firstExisting && !rowThemeSelections[row.segmentId]) {
-                    setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { themeId: firstExisting.themeId, label: firstExisting.label } }))
-                }
             }
         } catch (e) {
             console.error('suggest-themes error:', e)
