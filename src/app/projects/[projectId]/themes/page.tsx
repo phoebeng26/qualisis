@@ -513,6 +513,9 @@ export default function ThemesPage() {
     const [rowThemePickerOpen, setRowThemePickerOpen] = useState<Record<string, boolean>>({})
     // Expandable AI Reliance Report rows in Rationale & Memos column
     const [expandedRationaleRows, setExpandedRationaleRows] = useState<Record<string, boolean>>({})
+    // On-demand theme suggestions per row
+    const [rowThemeSuggestions, setRowThemeSuggestions] = useState<Record<string, { label: string; isExisting: boolean; themeId: string | null; reasoning?: string }[]>>({})
+    const [rowThemeSuggestingLoading, setRowThemeSuggestingLoading] = useState<Record<string, boolean>>({})
 
     const fetchPendingCodes = useCallback(async () => {
         setPendingCodesLoading(true)
@@ -577,6 +580,30 @@ export default function ThemesPage() {
             }
         } catch (error) {
             console.error('Failed to save review decision:', error)
+        }
+    }
+
+    const handleSuggestThemes = async (row: PendingRow) => {
+        setRowThemeSuggestingLoading(prev => ({ ...prev, [row.segmentId]: true }))
+        try {
+            const res = await fetch(`/api/projects/${projectId}/suggest-themes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codeLabel: row.suggestion.label, excerpt: row.text })
+            })
+            const data = await res.json()
+            if (data.suggestions?.length > 0) {
+                setRowThemeSuggestions(prev => ({ ...prev, [row.segmentId]: data.suggestions }))
+                // Auto-pre-select the first existing match if any
+                const firstExisting = data.suggestions.find((s: any) => s.isExisting && s.themeId)
+                if (firstExisting && !rowThemeSelections[row.segmentId]) {
+                    setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { themeId: firstExisting.themeId, label: firstExisting.label } }))
+                }
+            }
+        } catch (e) {
+            console.error('suggest-themes error:', e)
+        } finally {
+            setRowThemeSuggestingLoading(prev => ({ ...prev, [row.segmentId]: false }))
         }
     }
 
@@ -1595,119 +1622,99 @@ Rules:
                                                                     {!row.isHuman && conf > 0 && <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded w-fit ${confBg}`}>{conf}%</span>}
                                                                     {row.isHuman && <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider bg-purple-100 text-purple-700 w-fit">HUMAN</span>}
                                                                 </div>
-                                                                {/* Alternative chips */}
+                                                                {/* Alternatives — clean dropdown */}
                                                                 {!isAccepted && !row.isHuman && row.suggestion.status !== 'REJECTED' && Array.isArray((row.suggestion as any).alternatives) && (row.suggestion as any).alternatives.length > 0 && (
-                                                                    <div className="flex flex-col gap-1 w-full">
-                                                                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Try instead:</span>
-                                                                        <div className="flex flex-wrap gap-1">
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        <span className="text-[9px] text-slate-400 font-semibold shrink-0">Try instead:</span>
+                                                                        <select
+                                                                            defaultValue=""
+                                                                            onChange={e => {
+                                                                                if (e.target.value) {
+                                                                                    handleCompareDecision(row, 'OVERRIDE', e.target.value)
+                                                                                    e.target.value = ''
+                                                                                }
+                                                                            }}
+                                                                            className="text-[10px] text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-300 cursor-pointer flex-1 min-w-0"
+                                                                        >
+                                                                            <option value="">Select alternative...</option>
                                                                             {((row.suggestion as any).alternatives as string[]).map((alt: string, altIdx: number) => {
-                                                                                // Parse prefix tag like [IN-VIVO], [ANALYTICAL], [RQ-LENS]
                                                                                 const tagMatch = alt.match(/^\[([^\]]+)\]\s*/);
                                                                                 const tag = tagMatch ? tagMatch[1] : null;
                                                                                 const cleanAlt = tagMatch ? alt.slice(tagMatch[0].length) : alt;
-                                                                                const tagColors: Record<string, string> = {
-                                                                                    'IN-VIVO': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                                                                                    'ANALYTICAL': 'bg-violet-50 text-violet-700 border-violet-200',
-                                                                                    'RQ-LENS': 'bg-amber-50 text-amber-700 border-amber-200',
-                                                                                };
-                                                                                const chipColor = tag ? (tagColors[tag] || 'bg-slate-50 text-slate-600 border-slate-200') : 'bg-slate-50 text-slate-600 border-slate-200';
                                                                                 return (
-                                                                                    <button
-                                                                                        key={altIdx}
-                                                                                        onClick={() => handleCompareDecision(row, 'OVERRIDE', cleanAlt)}
-                                                                                        title={`Accept with: "${cleanAlt}"`}
-                                                                                        className={`inline-flex flex-col items-start gap-0.5 px-2 py-1 rounded border text-left hover:opacity-80 transition-all cursor-pointer ${chipColor}`}
-                                                                                    >
-                                                                                        {tag && <span className="text-[8px] font-extrabold uppercase tracking-widest opacity-60">{tag}</span>}
-                                                                                        <span className="text-[10px] font-bold leading-tight">{cleanAlt}</span>
-                                                                                    </button>
+                                                                                    <option key={altIdx} value={cleanAlt}>
+                                                                                        {tag ? `[${tag}] ${cleanAlt}` : cleanAlt}
+                                                                                    </option>
                                                                                 )
                                                                             })}
-                                                                        </div>
+                                                                        </select>
                                                                     </div>
                                                                 )}
-                                                                {/* Theme selector */}
+                                                                {/* Theme — on-demand AI button */}
                                                                 {!isAccepted && !row.isHuman && row.suggestion.status !== 'REJECTED' && (() => {
-                                                                    const suggestedTheme = (row.suggestion as any).suggestedTheme as string | null;
-                                                                    const matchingExistingTheme = (row.suggestion as any).matchingExistingTheme as string | null;
-                                                                    const matchingExistingThemeId = (row.suggestion as any).matchingExistingThemeId as string | null;
                                                                     const rowSel = rowThemeSelections[row.segmentId];
-                                                                    const pickerOpen = rowThemePickerOpen[row.segmentId];
-                                                                    // Default selection to matching theme if not yet set
-                                                                    const displayLabel = rowSel?.label || matchingExistingTheme || suggestedTheme;
-                                                                    const isExisting = rowSel ? !!rowSel.themeId : !!matchingExistingTheme;
-                                                                    if (!suggestedTheme && !matchingExistingTheme) return null;
+                                                                    const suggestions = rowThemeSuggestions[row.segmentId];
+                                                                    const isLoading = rowThemeSuggestingLoading[row.segmentId];
                                                                     return (
-                                                                        <div className="flex flex-col gap-1 w-full pt-1 border-t border-slate-100">
-                                                                            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Theme:</span>
-                                                                            {!pickerOpen ? (
-                                                                                <button
-                                                                                    onClick={() => setRowThemePickerOpen(prev => ({ ...prev, [row.segmentId]: true }))}
-                                                                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold text-left hover:opacity-70 transition-opacity ${isExisting ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
-                                                                                    title="Click to change theme"
-                                                                                >
-                                                                                    {isExisting ? (
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                                                                                    ) : (
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                                                                                    )}
-                                                                                    <span className="max-w-[150px] truncate">{displayLabel}</span>
-                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ml-auto opacity-50"><path d="m6 9 6 6 6-6"/></svg>
-                                                                                </button>
-                                                                            ) : (
-                                                                                <div className="flex flex-col gap-1 bg-white border border-slate-200 rounded-lg shadow-lg p-2 z-20">
-                                                                                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider px-1">Existing themes:</span>
-                                                                                    <div className="flex flex-col gap-0.5 max-h-[120px] overflow-y-auto">
-                                                                                        {themes.map(t => (
-                                                                                            <button
-                                                                                                key={t.id}
-                                                                                                onClick={() => {
-                                                                                                    setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { themeId: t.id, label: t.name } }))
-                                                                                                    setRowThemePickerOpen(prev => ({ ...prev, [row.segmentId]: false }))
-                                                                                                }}
-                                                                                                className={`text-left px-2 py-1 rounded text-[10px] font-semibold hover:bg-teal-50 hover:text-teal-700 transition-colors ${rowSel?.themeId === t.id ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-700'}`}
-                                                                                            >
-                                                                                                {t.name}
-                                                                                            </button>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                    <div className="border-t border-slate-100 pt-1 mt-0.5">
-                                                                                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider px-1">Or create new:</span>
-                                                                                        <input
-                                                                                            type="text"
-                                                                                            placeholder={suggestedTheme || 'New theme name...'}
-                                                                                            defaultValue={rowSel?.newThemeName || (!rowSel?.themeId ? (suggestedTheme || '') : '')}
-                                                                                            onKeyDown={e => {
-                                                                                                if (e.key === 'Enter') {
-                                                                                                    const val = (e.target as HTMLInputElement).value.trim();
-                                                                                                    if (val) {
-                                                                                                        setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { newThemeName: val, label: val } }))
-                                                                                                        setRowThemePickerOpen(prev => ({ ...prev, [row.segmentId]: false }))
-                                                                                                    }
-                                                                                                }
-                                                                                            }}
-                                                                                            onBlur={e => {
-                                                                                                const val = e.target.value.trim();
-                                                                                                if (val) {
-                                                                                                    setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { newThemeName: val, label: val } }))
-                                                                                                }
-                                                                                                setRowThemePickerOpen(prev => ({ ...prev, [row.segmentId]: false }))
-                                                                                            }}
-                                                                                            className="w-full mt-1 px-2 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                                                                                            autoFocus={false}
-                                                                                        />
-                                                                                    </div>
+                                                                        <div className="flex flex-col gap-1 w-full pt-1.5 border-t border-slate-100 mt-0.5">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Theme</span>
+                                                                                {rowSel?.label && (
                                                                                     <button
-                                                                                        onClick={() => {
-                                                                                            // Clear selection → no theme
-                                                                                            setRowThemeSelections(prev => { const n = {...prev}; delete n[row.segmentId]; return n; })
-                                                                                            setRowThemePickerOpen(prev => ({ ...prev, [row.segmentId]: false }))
+                                                                                        onClick={() => { setRowThemeSelections(prev => { const n = {...prev}; delete n[row.segmentId]; return n; }); setRowThemeSuggestions(prev => { const n = {...prev}; delete n[row.segmentId]; return n; }); }}
+                                                                                        className="text-[8px] text-slate-300 hover:text-rose-400 transition-colors"
+                                                                                    >✕ clear</button>
+                                                                                )}
+                                                                            </div>
+                                                                            {/* Selected theme chip */}
+                                                                            {rowSel?.label && (
+                                                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${rowSel.themeId ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                                                                    {rowSel.themeId ? '✓' : '+'} {rowSel.label}
+                                                                                </span>
+                                                                            )}
+                                                                            {/* Suggestions list */}
+                                                                            {suggestions && suggestions.length > 0 && (
+                                                                                <div className="flex flex-col gap-0.5">
+                                                                                    {suggestions.map((s, si) => (
+                                                                                        <button
+                                                                                            key={si}
+                                                                                            onClick={() => setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { themeId: s.themeId || undefined, newThemeName: s.themeId ? undefined : s.label, label: s.label } }))}
+                                                                                            title={s.reasoning}
+                                                                                            className={`text-left px-2 py-1 rounded border text-[10px] font-semibold transition-colors ${rowSel?.label === s.label ? 'ring-1 ring-indigo-400' : ''} ${s.isExisting ? 'bg-teal-50 text-teal-700 border-teal-100 hover:bg-teal-100' : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'}`}
+                                                                                        >
+                                                                                            <span className="text-[8px] font-extrabold uppercase opacity-50 mr-1">{s.isExisting ? 'existing' : 'new'}</span>
+                                                                                            {s.label}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                    {/* Custom input */}
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        placeholder="Or type custom theme..."
+                                                                                        onKeyDown={e => {
+                                                                                            if (e.key === 'Enter') {
+                                                                                                const val = (e.target as HTMLInputElement).value.trim();
+                                                                                                if (val) setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { newThemeName: val, label: val } }));
+                                                                                                (e.target as HTMLInputElement).value = '';
+                                                                                            }
                                                                                         }}
-                                                                                        className="text-[9px] text-slate-400 hover:text-rose-500 transition-colors text-left px-1"
-                                                                                    >
-                                                                                        ✕ Accept without theme
-                                                                                    </button>
+                                                                                        className="mt-0.5 px-2 py-0.5 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-300 text-slate-600"
+                                                                                    />
                                                                                 </div>
+                                                                            )}
+                                                                            {/* Trigger button */}
+                                                                            {!suggestions && (
+                                                                                <button
+                                                                                    onClick={() => handleSuggestThemes(row)}
+                                                                                    disabled={isLoading}
+                                                                                    className="inline-flex items-center gap-1 px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-600 text-[10px] font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                                                                                >
+                                                                                    {isLoading ? (
+                                                                                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                                                    ) : (
+                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m17 2 5 5-5 5"/></svg>
+                                                                                    )}
+                                                                                    {isLoading ? 'Thinking...' : '✦ Suggest Theme'}
+                                                                                </button>
                                                                             )}
                                                                         </div>
                                                                     )
