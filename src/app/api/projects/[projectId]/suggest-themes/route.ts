@@ -105,33 +105,50 @@ Return ONLY a raw JSON array, no markdown fences:
 
         // Fuzzy-match each suggestion against existing themes using word overlap
         // (handles paraphrasing — AI may say "Pragmatic AI Acceptance" vs "Pragmatic Acceptance AI Output Under Constraints")
-        const FUZZY_THRESHOLD = 0.45
-        const enriched = suggestions.map(s => {
-            // 1. Try exact match first
-            let match = existingThemes.find(t =>
-                t.name.toLowerCase().trim() === s.label.toLowerCase().trim()
-            )
-            // 2. Fall back to fuzzy word-overlap
-            if (!match) {
-                let bestScore = 0
-                for (const t of existingThemes) {
-                    const score = wordSimilarity(s.label, t.name)
-                    if (score >= FUZZY_THRESHOLD && score > bestScore) {
-                        bestScore = score
-                        match = t
+        const FUZZY_THRESHOLD = 0.5  // Raised threshold — only confident matches count
+        const seenThemeIds = new Set<string>()
+
+        const enriched = suggestions
+            .map(s => {
+                // 1. Try exact match first
+                let match = existingThemes.find(t =>
+                    t.name.toLowerCase().trim() === s.label.toLowerCase().trim()
+                )
+                // 2. Fall back to fuzzy word-overlap
+                if (!match) {
+                    let bestScore = 0
+                    for (const t of existingThemes) {
+                        const score = wordSimilarity(s.label, t.name)
+                        if (score >= FUZZY_THRESHOLD && score > bestScore) {
+                            bestScore = score
+                            match = t
+                        }
                     }
                 }
-            }
-            return {
-                ...s,
-                // Use exact DB name when fuzzy-matched so the ID is correct
-                label: match ? match.name : s.label,
-                themeId: match?.id || null,
-                isExisting: !!match || s.isExisting,
-            }
-        })
 
-        // Sort: existing themes first, then new suggestions
+                // IMPORTANT: isExisting is determined PURELY by DB match — ignore AI's self-report
+                // This prevents false "existing" labels when the AI hallucinates or paraphrases
+                const isExistingConfirmed = !!match
+
+                return {
+                    ...s,
+                    label: match ? match.name : s.label,  // Use exact DB name if matched
+                    themeId: match?.id || null,
+                    isExisting: isExistingConfirmed,
+                    _matchId: match?.id || null,  // for deduplication
+                }
+            })
+            // Deduplicate: if two suggestions matched the same existing theme, keep only the first
+            .filter(s => {
+                if (s._matchId) {
+                    if (seenThemeIds.has(s._matchId)) return false
+                    seenThemeIds.add(s._matchId)
+                }
+                return true
+            })
+            .map(({ _matchId, ...rest }) => rest)  // remove internal dedup field
+
+        // Sort: confirmed existing themes first, then new proposals
         enriched.sort((a, b) => (b.isExisting ? 1 : 0) - (a.isExisting ? 1 : 0))
 
         return NextResponse.json({ suggestions: enriched, existingThemes })
