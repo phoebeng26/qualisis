@@ -516,6 +516,10 @@ export default function ThemesPage() {
     // On-demand theme suggestions per row
     const [rowThemeSuggestions, setRowThemeSuggestions] = useState<Record<string, { label: string; isExisting: boolean; themeId: string | null; reasoning?: string }[]>>({})
     const [rowThemeSuggestingLoading, setRowThemeSuggestingLoading] = useState<Record<string, boolean>>({})
+    
+    // On-demand alternative code suggestions per row
+    const [rowCodeSuggestions, setRowCodeSuggestions] = useState<Record<string, string[]>>({})
+    const [rowCodeSuggestingLoading, setRowCodeSuggestingLoading] = useState<Record<string, boolean>>({})
 
     const fetchPendingCodes = useCallback(async () => {
         setPendingCodesLoading(true)
@@ -599,6 +603,7 @@ export default function ThemesPage() {
                 setRowThemeSelections(prev => { const n = {...prev}; delete n[row.segmentId]; return n; })
                 setRowThemePickerOpen(prev => { const n = {...prev}; delete n[row.segmentId]; return n; })
                 setRowThemeSuggestions(prev => { const n = {...prev}; delete n[row.segmentId]; return n; })
+                setRowCodeSuggestions(prev => { const n = {...prev}; delete n[row.segmentId]; return n; })
             }
 
             // If a new theme was created, refresh the themes list so it appears in Theme Builder
@@ -607,6 +612,25 @@ export default function ThemesPage() {
             }
         } catch (error) {
             console.error('Failed to save review decision:', error)
+        }
+    }
+
+    const handleSuggestCodes = async (row: PendingRow) => {
+        setRowCodeSuggestingLoading(prev => ({ ...prev, [row.segmentId]: true }))
+        try {
+            const res = await fetch(`/api/projects/${projectId}/suggest-codes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentCode: row.suggestion.label, excerpt: row.text })
+            })
+            const data = await res.json()
+            if (data.alternatives?.length > 0) {
+                setRowCodeSuggestions(prev => ({ ...prev, [row.segmentId]: data.alternatives }))
+            }
+        } catch (e) {
+            console.error('suggest-codes error:', e)
+        } finally {
+            setRowCodeSuggestingLoading(prev => ({ ...prev, [row.segmentId]: false }))
         }
     }
 
@@ -1651,33 +1675,50 @@ Rules:
                                                                         </div>
                                                                     </div>
                                                                 ) : null}
-                                                                {/* Alternatives — clean dropdown */}
-                                                                {!isAccepted && !row.isHuman && row.suggestion.status !== 'REJECTED' && Array.isArray((row.suggestion as any).alternatives) && (row.suggestion as any).alternatives.length > 0 && (
-                                                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                                                        <span className="text-[9px] text-slate-400 font-semibold shrink-0">Try instead:</span>
-                                                                        <select
-                                                                            value=""
-                                                                            onChange={e => {
-                                                                                if (e.target.value) {
-                                                                                    setPendingLabelEdits(prev => ({ ...prev, [row.segmentId]: e.target.value }))
-                                                                                }
-                                                                            }}
-                                                                            className="text-[10px] text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-300 cursor-pointer flex-1 min-w-0"
-                                                                        >
-                                                                            <option value="">Select alternative...</option>
-                                                                            {((row.suggestion as any).alternatives as string[]).map((alt: string, altIdx: number) => {
-                                                                                const tagMatch = alt.match(/^\[([^\]]+)\]\s*/);
-                                                                                const tag = tagMatch ? tagMatch[1] : null;
-                                                                                const cleanAlt = tagMatch ? alt.slice(tagMatch[0].length) : alt;
-                                                                                return (
-                                                                                    <option key={altIdx} value={cleanAlt}>
-                                                                                        {tag ? `[${tag}] ${cleanAlt}` : cleanAlt}
-                                                                                    </option>
-                                                                                )
-                                                                            })}
-                                                                        </select>
-                                                                    </div>
-                                                                )}
+                                                                {/* Alternatives — on-demand generation */}
+                                                                {!isAccepted && !row.isHuman && row.suggestion.status !== 'REJECTED' && (() => {
+                                                                    const suggestions = rowCodeSuggestions[row.segmentId];
+                                                                    const isLoading = rowCodeSuggestingLoading[row.segmentId];
+                                                                    
+                                                                    return (
+                                                                        <div className="flex flex-col gap-1 w-full pt-1.5 border-t border-slate-100 mt-0.5">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Alternatives</span>
+                                                                            </div>
+                                                                            
+                                                                            {suggestions && suggestions.length > 0 && (
+                                                                                <div className="flex flex-wrap gap-1.5 mb-1">
+                                                                                    {suggestions.map((alt, altIdx) => {
+                                                                                        const isSelected = draftLabel === alt;
+                                                                                        return (
+                                                                                            <button
+                                                                                                key={altIdx}
+                                                                                                onClick={() => setPendingLabelEdits(prev => ({ ...prev, [row.segmentId]: alt }))}
+                                                                                                className={`text-[9px] font-semibold px-2 py-1 rounded transition-all text-left ${isSelected ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600'}`}
+                                                                                                title="Click to select this alternative code"
+                                                                                            >
+                                                                                                {alt}
+                                                                                            </button>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+                                                                            
+                                                                            <button
+                                                                                onClick={() => handleSuggestCodes(row)}
+                                                                                disabled={isLoading}
+                                                                                className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded border border-dashed border-slate-300 text-[10px] font-bold text-slate-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all disabled:opacity-50"
+                                                                            >
+                                                                                {isLoading ? (
+                                                                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                                                ) : (
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>
+                                                                                )}
+                                                                                {isLoading ? 'Thinking...' : (suggestions?.length ? 'Regenerate Options' : '✦ Suggest Alternatives')}
+                                                                            </button>
+                                                                        </div>
+                                                                    )
+                                                                })()}
                                                                 {/* Theme — on-demand AI button */}
                                                                 {!isAccepted && !row.isHuman && row.suggestion.status !== 'REJECTED' && (() => {
                                                                     const rowSel = rowThemeSelections[row.segmentId];
