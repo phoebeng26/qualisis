@@ -562,8 +562,22 @@ export default function ThemesPage() {
                 })
             })
 
-            // Update local state to reflect new status
+            // Update local state to reflect new status + optimistically add assigned theme badge
             const newStatus = finalAction === 'ACCEPT' ? 'APPROVED' : finalAction === 'REJECT' ? 'REJECTED' : finalAction === 'OVERRIDE' ? 'MODIFIED' : 'SUGGESTED';
+
+            // Build optimistic assignedThemes list
+            let optimisticThemes: { id: string; name: string }[] | undefined
+            if (themeSelection && (finalAction === 'ACCEPT' || finalAction === 'OVERRIDE')) {
+                const existingAssigned: { id: string; name: string }[] = (row.suggestion as any).assignedThemes || []
+                if (themeSelection.themeId && themeSelection.label) {
+                    const alreadyIn = existingAssigned.find(t => t.id === themeSelection.themeId)
+                    optimisticThemes = alreadyIn ? existingAssigned : [...existingAssigned, { id: themeSelection.themeId, name: themeSelection.label }]
+                } else if (newThemeName) {
+                    const alreadyIn = existingAssigned.find(t => t.name === newThemeName)
+                    optimisticThemes = alreadyIn ? existingAssigned : [...existingAssigned, { id: 'new-' + Date.now(), name: newThemeName }]
+                }
+            }
+
             setPendingCodes(prev => prev.map(r => {
                 if (r.segmentId === row.segmentId) {
                     return { 
@@ -571,7 +585,8 @@ export default function ThemesPage() {
                         suggestion: { 
                             ...r.suggestion, 
                             status: newStatus,
-                            label: finalLabel || r.suggestion.label
+                            label: finalLabel || r.suggestion.label,
+                            ...(optimisticThemes !== undefined ? { assignedThemes: optimisticThemes } : {})
                         } 
                     };
                 }
@@ -1622,6 +1637,24 @@ Rules:
                                                                     {!row.isHuman && conf > 0 && <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded w-fit ${confBg}`}>{conf}%</span>}
                                                                     {row.isHuman && <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider bg-purple-100 text-purple-700 w-fit">HUMAN</span>}
                                                                 </div>
+                                                                {/* Assigned themes — persisted links already in DB */}
+                                                                {((row.suggestion as any).assignedThemes as { id: string; name: string }[] | undefined)?.length ? (
+                                                                    <div className="flex flex-col gap-0.5 mt-0.5">
+                                                                        <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest">In theme:</span>
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {((row.suggestion as any).assignedThemes as { id: string; name: string }[]).map(t => (
+                                                                                <span
+                                                                                    key={t.id}
+                                                                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded text-[9px] font-bold"
+                                                                                    title={`Linked to theme: ${t.name}`}
+                                                                                >
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                                                                    {t.name}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                ) : null}
                                                                 {/* Alternatives — clean dropdown */}
                                                                 {!isAccepted && !row.isHuman && row.suggestion.status !== 'REJECTED' && Array.isArray((row.suggestion as any).alternatives) && (row.suggestion as any).alternatives.length > 0 && (
                                                                     <div className="flex items-center gap-1.5 mt-0.5">

@@ -41,7 +41,16 @@ export async function GET(_req: Request, { params }: { params: { projectId: stri
                     orderBy: { confidence: 'desc' }
                 },
                 codeAssignments: {
-                    include: { codebookEntry: { select: { name: true } } }
+                    include: {
+                        codebookEntry: {
+                            select: {
+                                name: true,
+                                themeLinks: {
+                                    select: { theme: { select: { id: true, name: true } } }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             orderBy: { transcript: { title: 'asc' } }
@@ -94,6 +103,17 @@ export async function GET(_req: Request, { params }: { params: { projectId: stri
                 }
             }
 
+            // Collect assigned themes from accepted code assignments
+            const assignedThemes: { id: string; name: string }[] = []
+            for (const ca of seg.codeAssignments) {
+                const links = (ca.codebookEntry as any).themeLinks || []
+                for (const link of links) {
+                    if (link.theme && !assignedThemes.find((t: any) => t.id === link.theme.id)) {
+                        assignedThemes.push({ id: link.theme.id, name: link.theme.name })
+                    }
+                }
+            }
+
             return {
                 segmentId: seg.id,
                 text: seg.text,
@@ -111,6 +131,7 @@ export async function GET(_req: Request, { params }: { params: { projectId: stri
                     suggestedTheme,
                     matchingExistingTheme,
                     matchingExistingThemeId,
+                    assignedThemes,
                 },
                 isHuman,
                 humanCodes: humanAssignments.map(c => c.codebookEntry.name),
