@@ -497,6 +497,7 @@ export default function ThemesPage() {
         transcriptTitle: string
         suggestion: { id: string; label: string; confidence: string | null; explanation: string | null; uncertainty: string | null; modelProvider: string | null; status: string }
         isHuman: boolean
+        codebookEntryId?: string
         humanCodes: string[]
         totalSuggestions: number
     }
@@ -1404,6 +1405,30 @@ Rules:
     }
 
     // AI Synthesize Themes (Meta-Themes)
+    const handleRemoveThemeFromRow = async (codebookEntryId: string, themeId: string) => {
+        try {
+            const res = await fetch(`/api/projects/${projectId}/themes`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ themeId, action: 'REMOVE_CODE', codeId: codebookEntryId })
+            });
+            if (res.ok) {
+                // Update local state to immediately remove the theme from this row
+                setPendingCodes(prev => prev.map(row => {
+                    if (row.codebookEntryId === codebookEntryId) {
+                        const newAssignedThemes = ((row.suggestion as any).assignedThemes || []).filter((t: any) => t.id !== themeId);
+                        return { ...row, suggestion: { ...row.suggestion, assignedThemes: newAssignedThemes } };
+                    }
+                    return row;
+                }));
+                // Also update the canvas state if active
+                fetchData();
+            }
+        } catch (e) {
+            console.error('Failed to unlink theme from row', e);
+        }
+    }
+
     const handleSynthesize = async () => {
         setSynthModalOpen(true)
         setSynthLoading(true)
@@ -1532,14 +1557,28 @@ Rules:
                                     disabled={suggestionsLoading}
                                     className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold transition-all border-l border-indigo-200 ${
                                         themeSuggestions.length > 0
-                                            ? 'bg-emerald-50 text-emerald-700 cursor-default'
+                                            ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
                                             : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
                                     }`}
-                                    title="Let AI analyze all unassigned codes and suggest themes"
+                                    title={themeSuggestions.length > 0 ? "Generate a new batch of theme suggestions" : "Let AI analyze all unassigned codes and suggest themes"}
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-                                    {suggestionsLoading ? 'Analyzing...' : themeSuggestions.length > 0 ? 'Themes Suggested' : 'Suggest Themes'}
+                                    {suggestionsLoading ? (
+                                        <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Analyzing...</>
+                                    ) : themeSuggestions.length > 0 ? (
+                                        <><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg> Regenerate</>
+                                    ) : (
+                                        <><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg> Suggest Themes</>
+                                    )}
                                 </button>
+                                {themeSuggestions.length > 0 && (
+                                    <button
+                                        onClick={() => setThemeSuggestions([])}
+                                        className="flex items-center justify-center px-3 py-2.5 border-l border-indigo-200 bg-white text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                                        title="Clear all suggestions"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    </button>
+                                )}
                             </div>
 
                             <button
@@ -1728,11 +1767,20 @@ Rules:
                                                                             {((row.suggestion as any).assignedThemes as { id: string; name: string }[]).map(t => (
                                                                                 <span
                                                                                     key={t.id}
-                                                                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded text-[9px] font-bold"
+                                                                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded text-[9px] font-bold group/themechip"
                                                                                     title={`Linked to theme: ${t.name}`}
                                                                                 >
                                                                                     <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
                                                                                     {t.name}
+                                                                                    {row.codebookEntryId && (
+                                                                                        <button 
+                                                                                            onClick={(e) => { e.stopPropagation(); handleRemoveThemeFromRow(row.codebookEntryId!, t.id); }}
+                                                                                            className="ml-1 opacity-0 group-hover/themechip:opacity-100 text-teal-400 hover:text-rose-500 hover:bg-rose-50 rounded px-0.5 transition-all"
+                                                                                            title="Remove code from theme"
+                                                                                        >
+                                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                                                        </button>
+                                                                                    )}
                                                                                 </span>
                                                                             ))}
                                                                         </div>

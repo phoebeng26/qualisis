@@ -45,6 +45,7 @@ export async function GET(_req: Request, { params }: { params: { projectId: stri
                     include: {
                         codebookEntry: {
                             select: {
+                                id: true,
                                 name: true,
                                 themeLinks: {
                                     select: { theme: { select: { id: true, name: true } } }
@@ -136,6 +137,7 @@ export async function GET(_req: Request, { params }: { params: { projectId: stri
                     reviewDecision: (topSuggestion as any)?.reviewDecision,
                 },
                 isHuman,
+                codebookEntryId: humanAssignments.length > 0 ? humanAssignments[0].codebookEntry.id : (seg.codeAssignments.length > 0 ? seg.codeAssignments[0].codebookEntry.id : undefined),
                 humanCodes: humanAssignments.map(c => c.codebookEntry.name),
                 totalSuggestions: seg.suggestions.length,
             }
