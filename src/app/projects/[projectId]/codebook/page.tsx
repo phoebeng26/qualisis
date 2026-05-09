@@ -54,8 +54,47 @@ export default function CodebookPage() {
         try {
             const res = await fetch(`/api/projects/${projectId}/themes`)
             const data = await res.json()
-            setThemes(Array.isArray(data) ? data : [])
-        } catch { } finally { setLoading(false) }
+            
+            // Merge identical codes within each theme (by name)
+            const mergedData = Array.isArray(data) ? data.map((t: any) => {
+                const uniqueLinksMap = new Map();
+                for (const link of t.codeLinks || []) {
+                    const name = link.codebookEntry.name.trim().toLowerCase();
+                    if (!uniqueLinksMap.has(name)) {
+                        // Deep clone to avoid mutating original
+                        uniqueLinksMap.set(name, JSON.parse(JSON.stringify(link)));
+                    } else {
+                        const existing = uniqueLinksMap.get(name);
+                        // Merge sample quotes
+                        const existingQuotes = existing.codebookEntry.sampleQuotes || [];
+                        for (const q of (link.codebookEntry.sampleQuotes || [])) {
+                            if (!existingQuotes.some((eq: any) => eq.text === q.text)) {
+                                existingQuotes.push(q);
+                            }
+                        }
+                        existing.codebookEntry.sampleQuotes = existingQuotes;
+                        
+                        // Merge participants
+                        const existingPax = existing.codebookEntry.participants || [];
+                        for (const p of (link.codebookEntry.participants || [])) {
+                            if (!existingPax.some((ep: any) => ep.id === p.id)) {
+                                existingPax.push(p);
+                            }
+                        }
+                        existing.codebookEntry.participants = existingPax;
+
+                        // Merge assignment counts
+                        if (!existing.codebookEntry._count) existing.codebookEntry._count = { codeAssignments: 0 };
+                        existing.codebookEntry._count.codeAssignments += (link.codebookEntry._count?.codeAssignments || 0);
+                    }
+                }
+                return { ...t, codeLinks: Array.from(uniqueLinksMap.values()) };
+            }) : [];
+
+            setThemes(mergedData)
+        } catch (e) {
+            console.error(e)
+        } finally { setLoading(false) }
     }, [projectId])
 
     useEffect(() => { fetchThemes() }, [fetchThemes])
