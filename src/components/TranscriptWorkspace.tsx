@@ -505,6 +505,14 @@ export default function TranscriptWorkspace({
         return dsArr;
     }, [transcript.content, transcript.metadata, analysisRun, segments]);
 
+    // Strip embedded speaker/timestamp lines from inside a text slice so they don't
+    // appear inside highlighted segments when a segment straddles a speaker tag.
+    const stripSpeakerTags = (text: string) =>
+        text
+            .replace(/^([A-Za-z_][A-Za-z0-9_ -]*)\s*:\s*/gm, '')        // "Speaker 1: "
+            .replace(/^((?:\[?\d{1,2}:)?\d{2}:\d{2}\]?)\s+[A-Za-z_][A-Za-z0-9_ -]*\s*$/gm, '')  // "00:16:43 Speaker 1"
+            .replace(/\n{2,}/g, ' ')  // collapse leftover blank lines into a space
+
     const renderTranscript = () => {
         const content = transcript.content;
 
@@ -639,9 +647,9 @@ export default function TranscriptWorkspace({
                     inlineStyle.paddingBottom = '2px';
                 }
 
-                // Safe text extraction
+                // Safe text extraction — strip embedded speaker tags that may fall within a segment range
                 const textEnd = Math.max(actualStart, ds.endIndex);
-                const textToRender = content.slice(actualStart, textEnd);
+                const textToRender = stripSpeakerTags(content.slice(actualStart, textEnd));
                 
                 if (textToRender.length > 0) {
                     pushNode(
