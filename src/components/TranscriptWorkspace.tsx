@@ -715,42 +715,22 @@ export default function TranscriptWorkspace({
                 cStyle = knownSpeakers[baseName];
             }
 
-            const isInterviewer = baseName === 'INTERVIEWER';
-
-            // Speaker label: show short label (e.g. "I" for Interviewer, speaker initial/number)
-            const shortLabel = isInterviewer ? 'I' : baseName.replace('SPEAKER ', 'P').replace('PARTICIPANT (', '').replace(')', '');
-
-            // Time range label
-            let timeLabel = '';
-            const tsMatch = b.label.match(/(\d{2}:\d{2}(?::\d{2})?)/);
-            if (tsMatch) timeLabel = tsMatch[1];
+            let displayLabel = b.label;
             if (b.endTime) {
+                const tsMatch = displayLabel.match(/(\d{2}:\d{2}(?::\d{2})?)/);
                 const etMatch = b.endTime.match(/(\d{2}:\d{2}(?::\d{2})?)/);
-                if (etMatch) timeLabel = `${timeLabel}–${etMatch[1]}`;
+                if (tsMatch && etMatch) {
+                    displayLabel = displayLabel.replace(tsMatch[1], `${tsMatch[1]} - ${etMatch[1]}`);
+                }
             }
 
             return (
-                <div
-                    key={`block-${i}`}
-                    className={`group flex gap-3 py-2 px-1 -mx-1 rounded-lg transition-colors hover:bg-slate-50/80 ${
-                        isInterviewer ? 'opacity-75' : ''
-                    }`}
-                >
-                    {/* Speaker indicator column */}
-                    <div className="flex-shrink-0 w-[60px] flex flex-col items-end pt-[3px] gap-0.5">
-                        <span className={`text-[9px] font-extrabold tracking-widest uppercase ${cStyle.text}`}>
-                            {shortLabel}
-                        </span>
-                        {timeLabel && (
-                            <span className="text-[8px] font-mono text-slate-300 leading-none">
-                                {timeLabel}
-                            </span>
-                        )}
+                <div key={`block-${i}`} className="mb-4 border border-slate-200 rounded-[14px] shadow-sm bg-white overflow-hidden relative break-inside-avoid">
+                    <div className={`select-none absolute top-0 left-0 bottom-0 w-1.5 ${cStyle.bar}`} />
+                    <div className={`select-none ${cStyle.bg} border-b border-slate-100 px-5 py-2 font-extrabold ${cStyle.text} text-[10.5px] uppercase tracking-widest pl-6`}>
+                        {displayLabel}
                     </div>
-                    {/* Colour bar */}
-                    <div className={`flex-shrink-0 w-0.5 rounded-full mt-1 mb-1 self-stretch ${cStyle.bar} opacity-50`} />
-                    {/* Content */}
-                    <div className="flex-1 text-[14px] leading-[1.75] text-slate-700 min-w-0">
+                    <div className="px-6 pt-3 pb-4 text-[14px] leading-relaxed text-slate-700 whitespace-pre-wrap">
                         {b.nodes}
                     </div>
                 </div>
