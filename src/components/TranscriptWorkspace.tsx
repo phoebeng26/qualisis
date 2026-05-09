@@ -448,7 +448,7 @@ export default function TranscriptWorkspace({
 
     type DisplaySegment = 
         | { type: 'highlight', id: string, startIndex: number, endIndex: number, seg: Segment }
-        | { type: 'speaker', id: string, startIndex: number, endIndex: number, label: string }
+        | { type: 'speaker', id: string, startIndex: number, endIndex: number, label: string, rawSpeaker: string, timestamp?: string }
 
     const displaySegments = useMemo(() => {
         const content = transcript.content;
@@ -484,7 +484,9 @@ export default function TranscriptWorkspace({
                 id: `spk-${match.index}`,
                 startIndex: match.index,
                 endIndex: match.index + match[0].length,
-                label
+                label,
+                rawSpeaker: rawTag,
+                timestamp: timestamp || undefined
             });
         }
 
@@ -506,8 +508,8 @@ export default function TranscriptWorkspace({
     const renderTranscript = () => {
         const content = transcript.content;
 
-        const blocks: { isSpeaker: boolean; label: string; nodes: React.ReactNode[] }[] = [];
-        let currentBlock = { isSpeaker: false, label: '', nodes: [] as React.ReactNode[] };
+        const blocks: { isSpeaker: boolean; label: string; rawSpeaker?: string; nodes: React.ReactNode[] }[] = [];
+        let currentBlock = { isSpeaker: false, label: '', rawSpeaker: '', nodes: [] as React.ReactNode[] };
         const pushNode = (node: React.ReactNode) => currentBlock.nodes.push(node);
         
         let cursor = 0;
@@ -531,10 +533,21 @@ export default function TranscriptWorkspace({
             }
 
             if (ds.type === 'speaker') {
-                if (currentBlock.nodes.length > 0 || currentBlock.isSpeaker) {
-                    blocks.push(currentBlock);
+                if (currentBlock.isSpeaker && currentBlock.rawSpeaker === ds.rawSpeaker) {
+                    // Same speaker continues. Just append the timestamp as a visual separator if needed.
+                    if (ds.timestamp) {
+                        pushNode(
+                            <span key={`ts-${ds.id}`} className="block text-[10px] text-slate-400 font-bold mt-2 mb-1 select-none" data-offset={actualStart}>
+                                {ds.timestamp}
+                            </span>
+                        );
+                    }
+                } else {
+                    if (currentBlock.nodes.length > 0 || currentBlock.isSpeaker) {
+                        blocks.push(currentBlock);
+                    }
+                    currentBlock = { isSpeaker: true, label: ds.label, rawSpeaker: ds.rawSpeaker, nodes: [] };
                 }
-                currentBlock = { isSpeaker: true, label: ds.label, nodes: [] };
                 cursor = Math.max(cursor, ds.endIndex);
             } else if (ds.type === 'highlight') {
                 const seg = ds.seg!;
