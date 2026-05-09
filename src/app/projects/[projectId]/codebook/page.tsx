@@ -76,14 +76,16 @@ export default function CodebookPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ description: themeDescDraft })
             })
-            setThemes(prev => prev.map(t => t.id === themeId ? { ...t, description: themeDescDraft } : t))
-        } catch { } finally {
+            await fetchThemes() // Ensure data is perfectly in sync
+        } catch (e) { 
+            console.error(e)
+        } finally {
             setSavingTheme(false)
             setEditingThemeDesc(null)
         }
     }
 
-    // Save code definition
+    // Save code explanation
     const saveCodeDef = async (codeId: string) => {
         setSavingCode(true)
         try {
@@ -92,15 +94,10 @@ export default function CodebookPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ definition: codeDefDraft })
             })
-            setThemes(prev => prev.map(t => ({
-                ...t,
-                codeLinks: t.codeLinks.map(l =>
-                    l.codebookEntry.id === codeId
-                        ? { ...l, codebookEntry: { ...l.codebookEntry, definition: codeDefDraft } }
-                        : l
-                )
-            })))
-        } catch { } finally {
+            await fetchThemes() // Ensure data is perfectly in sync
+        } catch (e) {
+            console.error(e)
+        } finally {
             setSavingCode(false)
             setEditingCodeDef(null)
         }
@@ -166,7 +163,7 @@ export default function CodebookPage() {
                                 <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 w-[14%] border-r border-slate-200">Mega Theme</th>
                                 <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 w-[14%] border-r border-slate-200">Theme</th>
                                 <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 border-r border-slate-200 w-[14%]">Code</th>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 border-r border-slate-200 w-[24%]">Definition</th>
+                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 border-r border-slate-200 w-[24%]">Explanation</th>
                                 <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 border-r border-slate-200 w-[24%]">Sample Evidence</th>
                                 <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 w-[10%]">Participant IDs</th>
                             </tr>
@@ -215,11 +212,11 @@ export default function CodebookPage() {
                                     <>
                                         {/* Code name */}
                                         <td className="px-5 py-4 border-r border-slate-100 align-top bg-white"><div className="font-bold text-slate-800 text-[12px] leading-snug">{link.codebookEntry.name}</div></td>
-                                        {/* Definition */}
+                                        {/* Explanation */}
                                         <td className="px-5 py-4 border-r border-slate-100 align-top bg-white">
                                             {editingCodeDef === link.codebookEntry.id ? (
                                                 <div className="space-y-1.5">
-                                                    <textarea autoFocus className="w-full text-[11px] text-slate-700 border border-indigo-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300" rows={3} value={codeDefDraft} onChange={e => setCodeDefDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') setEditingCodeDef(null) }} placeholder="Add definition..." />
+                                                    <textarea autoFocus className="w-full text-[11px] text-slate-700 border border-indigo-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300" rows={3} value={codeDefDraft} onChange={e => setCodeDefDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') setEditingCodeDef(null) }} placeholder="Add explanation..." />
                                                     <div className="flex gap-1">
                                                         <button onClick={() => saveCodeDef(link.codebookEntry.id)} disabled={savingCode} className="text-[10px] font-bold px-2 py-0.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50">{savingCode ? '...' : 'Save'}</button>
                                                         <button onClick={() => setEditingCodeDef(null)} className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">Cancel</button>
@@ -233,10 +230,10 @@ export default function CodebookPage() {
                                                         <div>
                                                             <span className="inline-block text-[8px] font-extrabold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full uppercase tracking-widest mb-1">Inclusion criteria</span>
                                                             <p className="text-[11px] text-slate-400 italic leading-relaxed group-hover/def:text-slate-600 transition-colors">{link.codebookEntry.examplesIn}</p>
-                                                            <p className="text-[9px] text-indigo-400 mt-1 group-hover/def:text-indigo-600 transition-colors">+ Click to add definition</p>
+                                                            <p className="text-[9px] text-indigo-400 mt-1 group-hover/def:text-indigo-600 transition-colors">+ Click to add explanation</p>
                                                         </div>
                                                     ) : (
-                                                        <p className="text-[11px] text-slate-300 italic group-hover/def:text-indigo-400 transition-colors flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Add definition</p>
+                                                        <p className="text-[11px] text-slate-300 italic group-hover/def:text-indigo-400 transition-colors flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Add explanation</p>
                                                     )}
                                                 </button>
                                             )}
