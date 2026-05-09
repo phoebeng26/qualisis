@@ -4,6 +4,22 @@ import { openai } from '@/lib/ai';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+/** Simple word-overlap similarity between query text and a code label. Returns 0–1. */
+function semanticSimilarity(queryText: string, codeLabel: string): number {
+    const normalize = (s: string) =>
+        s.toLowerCase()
+         .replace(/[^a-z0-9 ]/g, ' ')
+         .split(/\s+/)
+         .filter(w => w.length > 2 && !['the','and','that','this','with','for','are','was','were','has','have','been','from','they','their'].includes(w));
+    const qWords = new Set(normalize(queryText));
+    const cWords = new Set(normalize(codeLabel));
+    if (qWords.size === 0 || cWords.size === 0) return 0;
+    let intersection = 0;
+    cWords.forEach(w => { if (qWords.has(w)) intersection++; });
+    // Weighted: jaccard on code side (so short labels don't need huge overlap)
+    return intersection / cWords.size;
+}
+
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -18,6 +34,21 @@ export async function POST(req: Request) {
         if (!text || !projectId) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+
+        // --- Fetch existing codes from the project codebook ---
+        const existingCodesRaw = await prisma.codebookEntry.findMany({
+            where: { projectId },
+            select: { id: true, name: true, definition: true },
+            orderBy: { name: 'asc' }
+        });
+
+        // Score each existing code against the selected text
+        const SIMILARITY_THRESHOLD = 0.35; // ~35% word overlap
+        const matchingCodes = existingCodesRaw
+            .map(c => ({ id: c.id, name: c.name, definition: c.definition, score: semanticSimilarity(text, c.name) }))
+            .filter(c => c.score >= SIMILARITY_THRESHOLD)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 4);
 
         // Fetch project to get ontology
         const project = await prisma.project.findUnique({
@@ -43,7 +74,10 @@ export async function POST(req: Request) {
         if (project?.researchQuestion) projectContext += `Research Question: ${project.researchQuestion}\n`;
 
         if (!openai) {
-            return NextResponse.json({ suggestions: ["Contextual Code 1", "Contextual Code 2", "Contextual Code 3"] });
+            return NextResponse.json({ 
+                suggestions: ["Contextual Code 1", "Contextual Code 2", "Contextual Code 3"],
+                existingMatches: matchingCodes
+            });
         }
 
         const prompt = `You are a specialized Qualitative Researcher.
@@ -76,11 +110,13 @@ Output your suggestions as a JSON array of 3 strings: { "suggestions": ["Descrip
         const res = JSON.parse(completion.choices[0].message?.content || '{"suggestions": []}');
         const suggestions = res.suggestions && Array.isArray(res.suggestions) ? res.suggestions : [];
 
-        // No more persona emojis, just the labels
-        return NextResponse.json({ suggestions: suggestions.slice(0, 3) });
+        return NextResponse.json({ 
+            suggestions: suggestions.slice(0, 3),
+            existingMatches: matchingCodes
+        });
 
     } catch (e) {
         console.error('Suggest Code Error:', e);
-        return NextResponse.json({ suggestions: [] }, { status: 500 });
+        return NextResponse.json({ suggestions: [], existingMatches: [] }, { status: 500 });
     }
 }

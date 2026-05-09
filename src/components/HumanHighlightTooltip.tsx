@@ -19,12 +19,14 @@ export default function HumanHighlightTooltip({
     const [codeName, setCodeName] = useState('')
     const [codeDescription, setCodeDescription] = useState('')
     const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
+    const [existingMatches, setExistingMatches] = useState<{ id: string; name: string; definition: string | null; score: number }[]>([])
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         if (showModal && selection?.text) {
             setAiSuggestions([])
+            setExistingMatches([])
             setIsLoadingSuggestions(true)
             
             fetch('/api/suggest-code', {
@@ -38,9 +40,8 @@ export default function HumanHighlightTooltip({
             })
             .then(res => res.json())
             .then(data => {
-                if (data.suggestions) {
-                    setAiSuggestions(data.suggestions)
-                }
+                if (data.suggestions) setAiSuggestions(data.suggestions)
+                if (data.existingMatches) setExistingMatches(data.existingMatches)
             })
             .catch(console.error)
             .finally(() => setIsLoadingSuggestions(false))
@@ -192,34 +193,65 @@ export default function HumanHighlightTooltip({
                             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500 font-bold text-slate-800"
                         />
                         
-                        <div className="mb-4 min-h-[24px]">
+                        <div className="mb-3 min-h-[24px]">
                             {isLoadingSuggestions ? (
                                 <div className="flex gap-2 items-center text-[10px] text-slate-400 font-medium">
                                     <svg className="w-3 h-3 animate-spin text-purple-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                     AI is learning human style...
                                 </div>
-                            ) : aiSuggestions.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5 items-center">
-                                    <div className="flex items-center gap-1 group relative">
-                                        <span className="text-[10px] uppercase font-bold text-purple-400 flex items-center tracking-wider">✨ AI Suggests</span>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-purple-300 cursor-help hover:text-purple-500 transition-colors"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                                        <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2.5 bg-slate-800 text-slate-50 text-[10px] rounded-lg shadow-lg z-50 leading-relaxed font-medium border border-slate-700">
-                                            These labels are dynamically tailored to match your project's ontology and your recent coding style.
-                                            <div className="absolute -bottom-1 left-3 w-2 h-2 bg-slate-800 border-b border-r border-slate-700 transform rotate-45"></div>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    {/* Existing codebook matches */}
+                                    {existingMatches.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                                <span className="text-[10px] uppercase font-bold text-teal-600 tracking-wider flex items-center gap-1">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                                    From Codebook
+                                                </span>
+                                                <span className="text-[9px] text-slate-400 font-medium">— similar codes already in your project</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {existingMatches.map(c => (
+                                                    <button
+                                                        key={c.id}
+                                                        onClick={() => setCodeName(c.name)}
+                                                        title={c.definition || c.name}
+                                                        className="text-[10px] font-bold bg-teal-50 text-teal-800 hover:bg-teal-100 border border-teal-200 px-2.5 py-0.5 rounded-full cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                                        {c.name}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <span className="text-purple-300 font-bold mr-1">:</span>
-                                    {aiSuggestions.map(s => (
-                                        <button 
-                                            key={s}
-                                            onClick={() => setCodeName(s)}
-                                            className="text-[10px] font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 hover:shadow-sm border border-purple-200 px-2.5 py-0.5 rounded-full cursor-pointer transition-all active:scale-95"
-                                        >
-                                            {s}
-                                        </button>
-                                    ))}
+                                    )}
+                                    {/* AI new code suggestions */}
+                                    {aiSuggestions.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-1 mb-1.5 group relative">
+                                                <span className="text-[10px] uppercase font-bold text-purple-400 flex items-center tracking-wider">✨ AI Suggests</span>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-purple-300 cursor-help hover:text-purple-500 transition-colors"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                                <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2.5 bg-slate-800 text-slate-50 text-[10px] rounded-lg shadow-lg z-50 leading-relaxed font-medium border border-slate-700">
+                                                    These labels are dynamically tailored to match your project's ontology and your recent coding style.
+                                                    <div className="absolute -bottom-1 left-3 w-2 h-2 bg-slate-800 border-b border-r border-slate-700 transform rotate-45"></div>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {aiSuggestions.map(s => (
+                                                    <button 
+                                                        key={s}
+                                                        onClick={() => setCodeName(s)}
+                                                        className="text-[10px] font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 hover:shadow-sm border border-purple-200 px-2.5 py-0.5 rounded-full cursor-pointer transition-all active:scale-95"
+                                                    >
+                                                        {s}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            ) : null}
+                            )}
                         </div>
                         <textarea
                             value={codeDescription}
