@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import CreateProjectButton from '@/components/CreateProjectButton'
 import DeleteProjectButton from '@/components/DeleteProjectButton'
+import DuplicateProjectButton from '@/components/DuplicateProjectButton'
 import { UserDropdown } from '@/components/UserDropdown'
 import GlobalSignOutButton from '@/components/GlobalSignOutButton'
 import { Network, Home, Settings, Plus, FolderOpen, FileText } from 'lucide-react'
@@ -83,6 +84,7 @@ export default async function ProjectsDashboard() {
                                     <div className="absolute top-0 left-0 w-2 h-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity z-0" />
                                     
                                     <DeleteProjectButton projectId={p.id} projectName={p.name} />
+                                    <DuplicateProjectButton projectId={p.id} projectName={p.name} />
                                     
                                     <h3 className="relative z-10 font-bold text-slate-800 text-lg mb-2 pr-8 pointer-events-none group-hover:text-indigo-700 transition-colors">{p.name}</h3>
                                     <p className="relative z-10 text-slate-500 text-sm line-clamp-3 mb-auto h-16 pointer-events-none">
