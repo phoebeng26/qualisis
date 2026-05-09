@@ -250,6 +250,10 @@ export default function HumanHighlightTooltip({
                                             </div>
                                         </div>
                                     )}
+                                    {/* Fallback when both are empty */}
+                                    {existingMatches.length === 0 && aiSuggestions.length === 0 && (
+                                        <p className="text-[10px] text-slate-400 italic">Type a code name above, or wait a moment for AI suggestions to load.</p>
+                                    )}
                                 </div>
                             )}
                         </div>
