@@ -108,8 +108,8 @@ Be precise and academically rigorous. Do NOT fabricate findings; draw on real sc
         })
         const literatureSynthesis = litCompletion.choices[0]?.message?.content || ''
 
-        // 5. PHASE 2 — Gap analysis comparing literature with codebook data
-        const gapAnalysisPrompt = `You are an expert qualitative researcher writing a "Research Gap Analysis" section for a peer-reviewed academic paper.
+        // 5. PHASE 2 — Thesis-argument structured discussion
+        const gapAnalysisPrompt = `You are an expert qualitative researcher writing the "Discussion" chapter for a peer-reviewed thesis.
 
 RESEARCH QUESTION (anchor everything here):
 "${researchQuestion}"
@@ -122,51 +122,68 @@ ${codebookEvidence}
 
 ---
 
-YOUR TASK — WRITE A GAP ANALYSIS REPORT:
+YOUR TASK — WRITE A THESIS-ARGUMENT STRUCTURED DISCUSSION:
 
-Write a full academic gap analysis that:
-1. Identifies 4-6 specific, concrete gaps between what existing literature covers and what the empirical data shows
-2. Frames each gap as: "Existing work tends to focus on X, but this data reveals Y — which has not been adequately theorised"
-3. Anchors every gap directly to the research question
-4. Uses specific verbatim participant quotes from the codebook data as evidence (clean the quotes — remove any timestamps or "Speaker X" markers before the quote text)
-5. Produces writing that could go directly into a thesis Discussion section
+This is NOT a list of gaps. It is a SINGLE, COHERENT ARGUMENT built through multiple interconnected analytic moves.
 
-Format:
-# Gap Analysis: [Project Topic]
+The logic is: ONE CENTRAL CLAIM → Literature produces the blind spot → Each finding advances the argument → Conceptual reframing
 
-## Overview
-[2-3 sentences: what the data reveals that the literature has missed, in relation to the research question]
+BEFORE writing, identify ONE sentence: the core theoretical contribution this data makes. This is a reframing — not a summary. Every section must serve this claim.
 
-## Gap 1: [Short compelling title]
-**What the literature says:** ...
-**What this data shows:** ...
-**Why this matters:** ...
-**Evidence from data:**
-> "[participant quote]" — [Participant name]
-
-## Gap 2: [Short compelling title]
-...
-
-(repeat for each gap)
-
-## Theoretical Contribution
-[3-4 sentences: how these gaps collectively point to a novel theoretical contribution or reframing]
-
-## Implications for Future Research
-[Bullet list of 3-5 concrete directions]
+Write with this EXACT structure:
 
 ---
-Rules:
+
+# Discussion: [A short argumentative title — a claim, not a description]
+
+## The Central Argument
+3–4 sentences. State the ONE core claim. Name what assumption in the existing literature it challenges. Use: "This study argues that...", "Contrary to the prevailing focus on X, the data reveals...", "The key issue is not X but Y."
+
+## What the Literature Has Framed — and Why That Framing Is Insufficient
+4–6 sentences in ONE flowing paragraph (not a list). Synthesise 2–3 ways the literature has approached this topic. For each: what it covers, and what it systematically cannot see. Show how they collectively produce the blind spot this study's data addresses.
+
+## Analytic Move 1: [verb-noun reframing — e.g. "Reframing X as Y", "From X to Y", NOT "Gap 1"]
+5–7 sentences. Tension → finding → argument advance → embedded quote(s) in prose.
+
+## Analytic Move 2: [verb-noun reframing]
+5–7 sentences. Same structure.
+
+## Analytic Move 3: [verb-noun reframing]
+5–7 sentences. Same structure.
+
+## Analytic Move 4: [Only if clearly supported by a fourth distinct data cluster]
+5–7 sentences. Same structure.
+
+## Conceptual Contribution: Towards [Name of a new concept, reframing, or framework]
+4–5 sentences. Name the contribution explicitly. A reframing — not a summary. This is the thesis's original insight. Connect back to the Central Argument.
+
+## Implications
+
+### For Research
+- [Specific future study direction 1]
+- [Direction 2]
+- [Direction 3]
+
+### For Practice
+- [How practitioners should act differently 1]
+- [Implication 2]
+
+---
+
+CRITICAL RULES:
+- Every move must connect back to the Central Claim. Drop any move that does not serve it.
 - Do NOT invent participant quotes. Use ONLY quotes from the codebook data provided above.
-- Do NOT just summarise the codebook. Identify genuine tensions between literature and data.
-- Be analytically sharp. The best gaps show something the field has overlooked, misframed, or undertheorised.
-- All gaps must directly serve the research question.`
+- Strip timestamps (e.g. "00:20:13") and "Speaker X" labels from quotes before using them.
+- Write in the register of a strong qualitative thesis — analytical, precise, not hedged.
+- Never say "Gap 1", "Gap 2". This is an argument, not a list.
+- The Conceptual Contribution must name something new — a concept, reframing, or framework.
+- Analytic move titles must be verb-noun phrases that name what the move does analytically.`
 
         const gapCompletion = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [{ role: 'user', content: gapAnalysisPrompt }],
             temperature: 0.35,
-            max_tokens: 3500,
+            max_tokens: 4000,
         })
         const gapAnalysis = gapCompletion.choices[0]?.message?.content || ''
 
