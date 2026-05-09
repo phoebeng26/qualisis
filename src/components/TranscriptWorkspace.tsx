@@ -730,7 +730,7 @@ export default function TranscriptWorkspace({
                     <div className={`select-none ${cStyle.bg} border-b border-slate-100 px-5 py-2 font-extrabold ${cStyle.text} text-[10.5px] uppercase tracking-widest pl-6`}>
                         {displayLabel}
                     </div>
-                    <div className="px-6 pt-3 pb-4 text-[14px] leading-relaxed text-slate-700 whitespace-pre-wrap">
+                    <div className="px-6 pt-3 pb-4 text-[14px] leading-relaxed text-slate-700">
                         {b.nodes}
                     </div>
                 </div>
