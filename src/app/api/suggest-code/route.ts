@@ -39,7 +39,8 @@ export async function POST(req: Request) {
         const allThemes = await prisma.theme.findMany({
             where: { projectId },
             include: {
-                children: true,
+                relationsIn: { where: { relationType: 'SUBTHEME_OF' } },
+                relationsOut: { where: { relationType: 'SUBTHEME_OF' } },
                 codeLinks: {
                     include: { codebookEntry: true }
                 }
@@ -47,24 +48,24 @@ export async function POST(req: Request) {
         });
 
         // Reconstruct hierarchy
-        const topLevelThemes = allThemes.filter(t => !t.parentId);
+        const topLevelThemes = allThemes.filter(t => t.relationsOut.length === 0);
         let codebookStructure = "PROJECT CODEBOOK (Themes & Codes):\n";
         
         topLevelThemes.forEach(theme => {
-            const isMega = theme.isMeta || (theme.children && theme.children.length > 0);
+            const childrenIds = theme.relationsIn.map(r => r.sourceId);
+            const isMega = childrenIds.length > 0;
+            
             if (isMega) {
                 codebookStructure += `[Mega Theme] ${theme.name}\n`;
-                if (theme.children) {
-                    theme.children.forEach(sub => {
-                        const fullSub = allThemes.find(t => t.id === sub.id);
-                        if (fullSub) {
-                            codebookStructure += `  - [Theme] ${fullSub.name}\n`;
-                            fullSub.codeLinks?.forEach(link => {
-                                codebookStructure += `      * [Code] ${link.codebookEntry.name}\n`;
-                            });
-                        }
-                    });
-                }
+                childrenIds.forEach(subId => {
+                    const fullSub = allThemes.find(t => t.id === subId);
+                    if (fullSub) {
+                        codebookStructure += `  - [Theme] ${fullSub.name}\n`;
+                        fullSub.codeLinks?.forEach(link => {
+                            codebookStructure += `      * [Code] ${link.codebookEntry.name}\n`;
+                        });
+                    }
+                });
             } else {
                 codebookStructure += `[Theme] ${theme.name}\n`;
                 theme.codeLinks?.forEach(link => {
