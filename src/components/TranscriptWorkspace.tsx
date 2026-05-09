@@ -85,7 +85,21 @@ export default function TranscriptWorkspace({
     const [analyzingStep, setAnalyzingStep] = useState(0)
     const [mounted, setMounted] = useState(false)
     const [showMassReview, setShowMassReview] = useState<'ALL' | 'PENDING' | 'ACCEPTED' | null>(null)
+    const [isFetchingForReview, setIsFetchingForReview] = useState(false)
     const [showEditConfirm, setShowEditConfirm] = useState(false)
+
+    const refreshSegments = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/transcripts/${transcript.id}`)
+            if (res.ok) {
+                const data = await res.json()
+                setSegments(data.segments || [])
+                if ((data.segments || []).length > 0) setAnalysisRun(true)
+            }
+        } catch (e) {
+            console.error('Failed to refresh segments:', e)
+        }
+    }, [transcript.id])
 
     const [toastMessage, setToastMessage] = useState<{ message: string; visible: boolean } | null>(null)
     const [showObsPanel, setShowObsPanel] = useState(false)
@@ -978,13 +992,18 @@ export default function TranscriptWorkspace({
             {/* ── Right: Panel ── */}
             <div className="w-80 flex-shrink-0 flex flex-col bg-slate-50 border-l border-slate-200 overflow-hidden">
                 {activePanel === null && (
-                    <EmptyPanel analysisRun={analysisRun} onRunAnalysis={runAnalysis} isAnalyzing={isAnalyzing} stats={stats} onOpenMassReview={(t) => setShowMassReview(t)} onHighlightGuide={() => {
+                    <EmptyPanel analysisRun={analysisRun} onRunAnalysis={runAnalysis} isAnalyzing={isAnalyzing} stats={stats} onOpenMassReview={async (t) => {
+                        setIsFetchingForReview(true);
+                        await refreshSegments();
+                        setIsFetchingForReview(false);
+                        setShowMassReview(t);
+                    }} onHighlightGuide={() => {
                         // Scroll transcript to top
                         transcriptBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                         // Flash glow ring
                         setShowHighlightGuide(true);
                         setTimeout(() => setShowHighlightGuide(false), 3000);
-                    }} />
+                    }} isFetchingForReview={isFetchingForReview} />
                 )}
                 {activePanel?.type === 'ai' && (
                     <AIComparePanel
@@ -1233,13 +1252,14 @@ function LegendDot({ color, label }: { color: string; label: string }) {
     )
 }
 
-function EmptyPanel({ analysisRun, onRunAnalysis, isAnalyzing, stats, onOpenMassReview, onHighlightGuide }: {
+function EmptyPanel({ analysisRun, onRunAnalysis, isAnalyzing, stats, onOpenMassReview, onHighlightGuide, isFetchingForReview }: {
     analysisRun: boolean
     onRunAnalysis: () => void
     isAnalyzing: boolean
     stats?: Stats
     onOpenMassReview: (tab: 'ALL' | 'PENDING' | 'ACCEPTED') => void
     onHighlightGuide: () => void
+    isFetchingForReview?: boolean
 }) {
     if (analysisRun && stats) {
         return (
@@ -1260,14 +1280,18 @@ function EmptyPanel({ analysisRun, onRunAnalysis, isAnalyzing, stats, onOpenMass
                 <div className="px-6 pb-6">
                     <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-4 px-2">Transcript Progress</p>
                     <div className="space-y-3">
-                        <div className="bg-white border text-left border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group" onClick={() => onOpenMassReview('ALL')}>
+                        <div className={`bg-white border text-left border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group ${isFetchingForReview ? 'opacity-60 pointer-events-none' : ''}`} onClick={() => onOpenMassReview('ALL')}>
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center font-bold flex-shrink-0 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-highlighter"><path d="m8 16 2.05-2.05a5.55 5.55 0 0 0-7.85-7.85L5 3"/><path d="m14 8 2.3 2.3c.9.9 2.5.9 3.4 0l.6-.6c.9-.9.9-2.5 0-3.4l-2.3-2.3"/><path d="m21 21-1-1"/><path d="m16 8 4 4"/><path d="M4 16h6v5H4v-5Z"/></svg>
+                                    {isFetchingForReview ? (
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-highlighter"><path d="m8 16 2.05-2.05a5.55 5.55 0 0 0-7.85-7.85L5 3"/><path d="m14 8 2.3 2.3c.9.9 2.5.9 3.4 0l.6-.6c.9-.9.9-2.5 0-3.4l-2.3-2.3"/><path d="m21 21-1-1"/><path d="m16 8 4 4"/><path d="M4 16h6v5H4v-5Z"/></svg>
+                                    )}
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <h4 className="text-[13px] font-bold text-slate-800 truncate">Total Highlights</h4>
-                                    <p className="text-[10px] text-indigo-500 font-bold truncate group-hover:underline">Click to view all</p>
+                                    <p className="text-[10px] text-indigo-500 font-bold truncate group-hover:underline">{isFetchingForReview ? 'Loading...' : 'Click to view all'}</p>
                                 </div>
                             </div>
                             <span className="text-xl font-extrabold text-indigo-700 pl-4">{stats.totalHighlights}</span>
