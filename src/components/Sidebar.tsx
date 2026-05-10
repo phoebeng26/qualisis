@@ -156,20 +156,6 @@ export default function Sidebar({ project }: { project: Project }) {
                     {!collapsed && <span className="text-sm">Final Codebook</span>}
                 </Link>
 
-                {/* ④ Research Report */}
-                <Link
-                    href={`/projects/${project.id}/report`}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all mb-1 ${
-                        isReportActive
-                            ? 'bg-white border border-slate-200 shadow-sm text-indigo-700 font-semibold'
-                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium border border-transparent'
-                    }`}
-                >
-                    <span className={isReportActive ? 'text-indigo-600' : 'text-slate-400'}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    </span>
-                    {!collapsed && <span className="text-sm">Research Report</span>}
-                </Link>
 
                 {!collapsed && <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest pl-3 mt-6 mb-2">Utilities</div>}
 
