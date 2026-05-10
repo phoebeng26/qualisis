@@ -87,6 +87,7 @@ export default function TranscriptWorkspace({
     const [showMassReview, setShowMassReview] = useState<'ALL' | 'PENDING' | 'ACCEPTED' | null>(null)
     const [isFetchingForReview, setIsFetchingForReview] = useState(false)
     const [showEditConfirm, setShowEditConfirm] = useState(false)
+    const [isRightBarCollapsed, setIsRightBarCollapsed] = useState(false)
 
     const refreshSegments = useCallback(async () => {
         try {
@@ -837,6 +838,19 @@ export default function TranscriptWorkspace({
                                 </button>
                             </div>
 
+                            {/* Right Sidebar Toggle */}
+                            <button 
+                                onClick={() => setIsRightBarCollapsed(!isRightBarCollapsed)}
+                                className="ml-1 w-[38px] h-[38px] flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 transition-colors shadow-sm bg-white"
+                                title={isRightBarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            >
+                                {isRightBarCollapsed ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/><path d="m10 15-3-3 3-3"/></svg>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/><path d="m8 9 3 3-3 3"/></svg>
+                                )}
+                            </button>
+
                             {/* Dropdown Menu */}
                             {showModelPicker && (
                                 <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-[100] p-4 flex flex-col gap-3">
@@ -990,53 +1004,55 @@ export default function TranscriptWorkspace({
             </div>
 
             {/* ── Right: Panel ── */}
-            <div className="w-80 flex-shrink-0 flex flex-col bg-slate-50 border-l border-slate-200 overflow-hidden">
-                {activePanel === null && (
-                    <EmptyPanel analysisRun={analysisRun} onRunAnalysis={runAnalysis} isAnalyzing={isAnalyzing} stats={stats} onOpenMassReview={async (t) => {
-                        setIsFetchingForReview(true);
-                        await refreshSegments();
-                        setIsFetchingForReview(false);
-                        setShowMassReview(t);
-                    }} onHighlightGuide={() => {
-                        // Scroll transcript to top
-                        transcriptBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-                        // Flash glow ring
-                        setShowHighlightGuide(true);
-                        setTimeout(() => setShowHighlightGuide(false), 3000);
-                    }} isFetchingForReview={isFetchingForReview} />
-                )}
-                {activePanel?.type === 'ai' && (
-                    <AIComparePanel
-                        key={activePanel.segment.id}
-                        segment={activePanel.segment}
-                        onClose={() => setActivePanel(null)}
-                        onDecision={(...args) => {
-                            handleDecision(...args);
-                            if (args[1] === 'ACCEPT' || args[1] === 'OVERRIDE') triggerToast('Code saved! Available in Theme Builder.');
-                        }}
-                        projectId={projectId}
-                        transcriptId={transcript.id}
-                        transcriptContent={transcript.content}
-                        onSupportingQuoteAdded={() => {
-                            triggerToast('Supporting quote linked!')
-                            router.refresh()
-                        }}
-                    />
-                )}
-                {activePanel?.type === 'human' && (
-                    <HumanCodePanel
-                        text={activePanel.text}
-                        codeName={activePanel.codeName}
-                        segmentId={activePanel.segmentId}
-                        onClose={() => setActivePanel(null)}
-                        projectId={projectId}
-                        onRemove={async (segId: string) => {
-                            setSegments(prev => prev.filter(s => s.id !== segId));
-                            setStats(prev => ({ ...prev, totalHighlights: Math.max(0, prev.totalHighlights - 1), assignedCodes: Math.max(0, prev.assignedCodes - 1) }));
-                            setActivePanel(null);
-                        }}
-                    />
-                )}
+            <div className={`${isRightBarCollapsed ? 'w-0 border-l-0 opacity-0' : 'w-80 border-l opacity-100'} transition-all duration-300 ease-in-out flex-shrink-0 flex flex-col bg-slate-50 border-slate-200 overflow-hidden relative`}>
+                <div className="w-80 flex flex-col h-full absolute top-0 right-0">
+                    {activePanel === null && (
+                        <EmptyPanel analysisRun={analysisRun} onRunAnalysis={runAnalysis} isAnalyzing={isAnalyzing} stats={stats} onOpenMassReview={async (t) => {
+                            setIsFetchingForReview(true);
+                            await refreshSegments();
+                            setIsFetchingForReview(false);
+                            setShowMassReview(t);
+                        }} onHighlightGuide={() => {
+                            // Scroll transcript to top
+                            transcriptBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                            // Flash glow ring
+                            setShowHighlightGuide(true);
+                            setTimeout(() => setShowHighlightGuide(false), 3000);
+                        }} isFetchingForReview={isFetchingForReview} />
+                    )}
+                    {activePanel?.type === 'ai' && (
+                        <AIComparePanel
+                            key={activePanel.segment.id}
+                            segment={activePanel.segment}
+                            onClose={() => setActivePanel(null)}
+                            onDecision={(...args) => {
+                                handleDecision(...args);
+                                if (args[1] === 'ACCEPT' || args[1] === 'OVERRIDE') triggerToast('Code saved! Available in Theme Builder.');
+                            }}
+                            projectId={projectId}
+                            transcriptId={transcript.id}
+                            transcriptContent={transcript.content}
+                            onSupportingQuoteAdded={() => {
+                                triggerToast('Supporting quote linked!')
+                                router.refresh()
+                            }}
+                        />
+                    )}
+                    {activePanel?.type === 'human' && (
+                        <HumanCodePanel
+                            text={activePanel.text}
+                            codeName={activePanel.codeName}
+                            segmentId={activePanel.segmentId}
+                            onClose={() => setActivePanel(null)}
+                            projectId={projectId}
+                            onRemove={async (segId: string) => {
+                                setSegments(prev => prev.filter(s => s.id !== segId));
+                                setStats(prev => ({ ...prev, totalHighlights: Math.max(0, prev.totalHighlights - 1), assignedCodes: Math.max(0, prev.assignedCodes - 1) }));
+                                setActivePanel(null);
+                            }}
+                        />
+                    )}
+                </div>
             </div>
 
             {/* Wait screen modal */}
