@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
 type CodeEntry = {
@@ -137,6 +137,25 @@ export default function CodebookPage() {
     const totalParticipants = new Set(
         themes.flatMap(t => t.codeLinks.flatMap(l => (l.codebookEntry.participants || []).map(p => p.id)))
     ).size
+
+    // Sort themes and their contents alphabetically for display
+    const sortedTopLevelThemes = useMemo(() => {
+        const clone = JSON.parse(JSON.stringify(topLevelThemes)) as ThemeData[]
+        
+        const sortCodes = (links: any[]) => {
+            return links.sort((a, b) => a.codebookEntry.name.localeCompare(b.codebookEntry.name))
+        }
+
+        const sortThemes = (thms: ThemeData[]) => {
+            return thms.sort((a, b) => a.name.localeCompare(b.name)).map(t => {
+                if (t.children) t.children = sortThemes(t.children)
+                if (t.codeLinks) t.codeLinks = sortCodes(t.codeLinks)
+                return t
+            })
+        }
+
+        return sortThemes(clone)
+    }, [topLevelThemes])
 
     // Save theme description
     const saveThemeDesc = async (themeId: string) => {
@@ -356,7 +375,7 @@ export default function CodebookPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {topLevelThemes.flatMap((themeOrMega) => {
+                            {sortedTopLevelThemes.flatMap((themeOrMega) => {
                                 const renderMegaThemeInfo = (t: any) => (
                                     <div className="flex flex-col gap-2">
                                         <div className="flex items-center gap-2 mb-1">
