@@ -161,10 +161,53 @@ Return ONLY a raw JSON array, no markdown fences:
             .replace(/^```json\n?/, '').replace(/```$/, '').trim()
 
         let suggestions: { label: string; isExisting: boolean; reasoning?: string }[] = []
+        let exactDbMatch: { label: string; isExisting: boolean; reasoning: string; themeId: string } | null = null;
+
+        // --- NEW: Check database for existing exact relationships before relying purely on AI ---
+        if (isMegaThemeRequest) {
+            // Child is a Theme. Find if this Theme exists and has a Mega-theme.
+            const matchedTheme = existingThemes.find(t => t.name.toLowerCase().trim() === codeLabel.toLowerCase().trim());
+            if (matchedTheme && matchedTheme.relationsOut.length > 0) {
+                const megaThemeId = matchedTheme.relationsOut[0].targetId;
+                const megaTheme = existingThemes.find(t => t.id === megaThemeId);
+                if (megaTheme) {
+                    exactDbMatch = {
+                        label: megaTheme.name,
+                        isExisting: true,
+                        reasoning: "Exact match: You have already assigned this Theme to this Mega-Theme in the project.",
+                        themeId: megaTheme.id
+                    };
+                }
+            }
+        } else {
+            // Child is a Code. Find if this Code exists in the DB and is linked to a Theme.
+            const existingCode = await prisma.codebookEntry.findFirst({
+                where: { projectId: params.projectId, name: { equals: codeLabel, mode: 'insensitive' } },
+                include: { themeLinks: { include: { theme: true } } }
+            });
+            if (existingCode && existingCode.themeLinks.length > 0) {
+                const linkedTheme = existingCode.themeLinks[0].theme;
+                if (linkedTheme.status !== 'MERGED') {
+                    exactDbMatch = {
+                        label: linkedTheme.name,
+                        isExisting: true,
+                        reasoning: "Exact match: This code is already grouped under this Theme in your Codebook.",
+                        themeId: linkedTheme.id
+                    };
+                }
+            }
+        }
+
         try {
             const parsed = JSON.parse(raw)
             suggestions = Array.isArray(parsed) ? parsed : []
         } catch { suggestions = [] }
+
+        // If we found an exact DB match, force it to be the first suggestion and remove duplicates from AI
+        if (exactDbMatch) {
+            suggestions = suggestions.filter(s => s.label.toLowerCase().trim() !== exactDbMatch!.label.toLowerCase().trim());
+            suggestions.unshift(exactDbMatch);
+        }
 
         // Fuzzy-match each suggestion against existing themes using word overlap
         // (handles paraphrasing — AI may say "Pragmatic AI Acceptance" vs "Pragmatic Acceptance AI Output Under Constraints")
