@@ -6,6 +6,10 @@ export const openai = process.env.OPENAI_API_KEY
     ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     : null
 
+export const fireworks = process.env.FIREWORKS_API_KEY
+    ? new OpenAI({ apiKey: process.env.FIREWORKS_API_KEY, baseURL: 'https://api.fireworks.ai/inference/v1' })
+    : null
+
 export const anthropic = process.env.ANTHROPIC_API_KEY
     ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     : null
@@ -233,14 +237,22 @@ export function chunkTranscriptWithOverlap(text: string, maxLen = 12000, overlap
 
 // ─── GPT-4o ──────────────────────────────────────────────────────────────────
 export async function analyzeWithGPT(transcriptContent: string, researchContext?: string, metadata?: any, summary?: string, modelOverride?: string) {
-    if (!openai) return null
     const model = modelOverride || 'gpt-4o-mini'
+    // Automatically switch to Fireworks if the user passed a Fireworks model string
+    const isFireworks = model.includes('accounts/') || model.includes('fireworks');
+    const client = isFireworks ? fireworks : openai;
+
+    if (!client) {
+        console.error("AI Client not initialized (Missing API Key for " + (isFireworks ? "Fireworks" : "OpenAI") + ")");
+        return null;
+    }
+
     try {
         const chunks = chunkTranscriptWithOverlap(transcriptContent);
         
         const chunkPromises = chunks.map(async (chunk) => {
             try {
-                const response = await openai!.chat.completions.create({
+                const response = await client.chat.completions.create({
                     model,
                     temperature: 0.3,
                     messages: [

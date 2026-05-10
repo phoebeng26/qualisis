@@ -14,7 +14,8 @@ export default function SettingsClient({ projectId, project, initialSettings, lo
         name: project.name || '',
         description: project.description || '',
         coreOntology: project.coreOntology || '',
-        researchQuestion: project.researchQuestion || ''
+        researchQuestion: project.researchQuestion || '',
+        aiSettings: typeof project.aiSettings === 'string' ? JSON.parse(project.aiSettings) : (project.aiSettings || { defaultModel: 'gpt-4o-mini' })
     })
 
     const handleSaveProject = async () => {
@@ -96,6 +97,20 @@ export default function SettingsClient({ projectId, project, initialSettings, lo
                                 onChange={e => setProjectData({ ...projectData, researchQuestion: e.target.value })}
                                 placeholder="What critical questions is this research trying to answer?"
                             />
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-200">
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Custom AI Model ID</label>
+                            <input 
+                                type="text" 
+                                className="w-full rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 p-3 bg-white transition-all shadow-sm"
+                                value={projectData.aiSettings.defaultModel}
+                                onChange={e => setProjectData({ ...projectData, aiSettings: { ...projectData.aiSettings, defaultModel: e.target.value } })}
+                                placeholder="e.g. gpt-4o-mini OR accounts/.../models/maria-style-v1"
+                            />
+                            <p className="text-xs text-slate-500 mt-2 ml-1">
+                                Paste your fine-tuned Fireworks AI model ID here to use it for all future thematic analyses.
+                            </p>
                         </div>
                     </div>
 
