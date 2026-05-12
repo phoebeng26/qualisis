@@ -856,6 +856,15 @@ export default function TranscriptWorkspace({
                                 )}
                             </button>
 
+                            {/* Sticky Note Toggle */}
+                            <button 
+                                onClick={() => setShowSticky(!showSticky)}
+                                className={`ml-1 w-[38px] h-[38px] flex items-center justify-center rounded-lg border text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors shadow-sm ${showSticky ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-white border-slate-200'}`}
+                                title="Sticky Notes"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg>
+                            </button>
+
                             {/* Dropdown Menu */}
                             {showModelPicker && (
                                 <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-[100] p-4 flex flex-col gap-3">
@@ -1059,6 +1068,28 @@ export default function TranscriptWorkspace({
                     )}
                 </div>
             </div>
+
+            {/* Sticky Note Floating Window */}
+            {showSticky && (
+                <div className={`fixed bottom-8 transition-all duration-300 z-[150] w-72 h-80 bg-yellow-100 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-tl-xl rounded-tr-xl rounded-bl-xl rounded-br-sm border border-yellow-300 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 fade-in ${isRightBarCollapsed ? 'right-8' : 'right-[340px]'}`}>
+                    <div className="bg-yellow-200/60 px-3 py-2 border-b border-yellow-300 flex justify-between items-center cursor-move">
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-yellow-800 flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>
+                            Transcript Memo
+                        </span>
+                        <button onClick={() => setShowSticky(false)} className="text-yellow-700 hover:text-yellow-900">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    <textarea 
+                        value={stickyNote}
+                        onChange={e => setStickyNote(e.target.value)}
+                        onBlur={() => saveSticky(stickyNote)}
+                        placeholder="Jot down emerging thoughts, questions, or raw memos here..."
+                        className="flex-1 w-full bg-transparent p-4 text-sm font-medium text-yellow-900 placeholder:text-yellow-700/50 resize-none focus:outline-none custom-scrollbar leading-relaxed"
+                    />
+                </div>
+            )}
 
             {/* Wait screen modal */}
             {mounted && isAnalyzing && typeof document !== 'undefined' && createPortal(

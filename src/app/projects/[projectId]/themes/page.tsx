@@ -120,6 +120,52 @@ function exportCodebookCSV(themes: ThemeData[], filename = 'codebook.csv') {
     URL.revokeObjectURL(url)
 }
 
+function exportMassReviewCSV(rows: any[], filename = 'mass_review.csv') {
+    const headers = ['Transcript', 'Excerpt', 'AI Code', 'Human Code', 'Theme', 'Mega-Theme', 'AI Explanation', 'Human Memo', 'Status']
+    const csvRows: string[][] = []
+
+    for (const row of rows) {
+        const transcript = row.transcriptTitle || ''
+        const excerpt = row.text || ''
+        const aiCode = row.suggestion?.label || ''
+        const humanCode = (row.humanCodes || []).join('; ')
+        
+        const assignedThemes = row.suggestion?.assignedThemes || []
+        const themeNames = assignedThemes.map((t: any) => t.name).join('; ')
+        const megaThemeNames = assignedThemes.filter((t: any) => t.megaTheme).map((t: any) => t.megaTheme.name).join('; ')
+
+        const explanation = row.suggestion?.explanation || ''
+        const memo = row.suggestion?.reviewDecision?.note || ''
+        const status = row.suggestion?.status || ''
+
+        csvRows.push([
+            transcript,
+            excerpt,
+            aiCode,
+            humanCode,
+            themeNames,
+            megaThemeNames,
+            explanation,
+            memo,
+            status
+        ])
+    }
+
+    const csvContent = [headers, ...csvRows]
+        .map(row => row.map(escapeCell).join(','))
+        .join('\n')
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+}
+
 function pColor(name: string) {
     const palette = [
         { bg: '#e0e7ff', text: '#4338ca' }, { bg: '#fce7f3', text: '#be185d' },
@@ -1820,6 +1866,13 @@ Rules:
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={pendingCodesLoading ? 'animate-spin' : ''}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                                     Refresh
+                                </button>
+                                <button
+                                    onClick={() => exportMassReviewCSV(sortedPendingCodes)}
+                                    className="flex items-center gap-2 px-3 py-2 border border-slate-200 text-slate-600 text-[12px] font-bold rounded-lg hover:bg-slate-50 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                                    Export CSV
                                 </button>
                                 {/* Sort selector */}
                                 <select

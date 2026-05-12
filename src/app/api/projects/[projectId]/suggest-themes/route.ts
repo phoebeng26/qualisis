@@ -51,7 +51,7 @@ export async function POST(req: Request, { params }: { params: { projectId: stri
 
         // Fetch ALL current themes WITH their existing code links and relations for richer AI context
         const existingThemes = await prisma.theme.findMany({
-            where: { projectId: params.projectId },
+            where: { projectId: params.projectId, status: { not: 'MERGED' } },
             select: {
                 id: true,
                 name: true,
