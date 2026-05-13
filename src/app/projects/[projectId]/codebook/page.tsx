@@ -366,9 +366,9 @@ export default function CodebookPage() {
                     <table className="w-full text-left text-sm text-slate-600">
                         <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
                             <tr>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 w-[14%] border-r border-slate-200">Mega Theme</th>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 w-[14%] border-r border-slate-200">Theme</th>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 border-r border-slate-200 w-[14%]">Code</th>
+                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 w-[14%] min-w-[100px] border-r border-slate-200 whitespace-normal break-words">Mega Theme</th>
+                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 w-[14%] min-w-[100px] border-r border-slate-200 whitespace-normal break-words">Theme</th>
+                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 border-r border-slate-200 w-[14%] min-w-[100px] whitespace-normal break-words">Code</th>
                                 <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 border-r border-slate-200 w-[24%]">Explanation</th>
                                 <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 border-r border-slate-200 w-[24%]">Sample Evidence</th>
                                 <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 w-[10%]">Participant IDs</th>

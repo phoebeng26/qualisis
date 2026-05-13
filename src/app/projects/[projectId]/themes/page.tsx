@@ -2103,149 +2103,82 @@ Rules:
                                                                         </div>
                                                                     )
                                                                 })()}
-                                                                {/* Theme — on-demand AI button */}
+                                                                {/* Theme — dropdown from DB */}
                                                                 {row.suggestion.status !== 'REJECTED' && (() => {
                                                                     const rowSel = rowThemeSelections[row.segmentId];
-                                                                    const suggestions = rowThemeSuggestions[row.segmentId];
-                                                                    const isLoading = rowThemeSuggestingLoading[row.segmentId];
+                                                                    // Sub-themes = themes that have a parentId (are children of a mega-theme), or standalone themes
+                                                                    const subThemes = themes.filter(t => !t.isMeta && !(t.children && t.children.length > 0));
                                                                     return (
                                                                         <div className="flex flex-col gap-1 w-full pt-1.5 border-t border-slate-100 mt-0.5">
                                                                             <div className="flex items-center justify-between">
                                                                                 <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Theme</span>
                                                                                 {rowSel?.label && (
                                                                                     <button
-                                                                                        onClick={() => { setRowThemeSelections(prev => { const n = {...prev}; delete n[row.segmentId]; return n; }); setRowThemeSuggestions(prev => { const n = {...prev}; delete n[row.segmentId]; return n; }); }}
+                                                                                        onClick={() => setRowThemeSelections(prev => { const n = {...prev}; delete n[row.segmentId]; return n; })}
                                                                                         className="text-[8px] text-slate-300 hover:text-rose-400 transition-colors"
                                                                                     >✕ clear</button>
                                                                                 )}
                                                                             </div>
-                                                                            {/* Selected theme chip */}
-                                                                            {rowSel?.label && (
-                                                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${rowSel.themeId ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                                                                                    {rowSel.themeId ? '✓' : '+'} {rowSel.label}
-                                                                                </span>
-                                                                            )}
-                                                                            {/* Suggestions list */}
-                                                                            {suggestions && suggestions.length > 0 && (
-                                                                                <div className="flex flex-col gap-0.5">
-                                                                                    {suggestions.map((s, si) => (
-                                                                                        <button
-                                                                                            key={si}
-                                                                                            onClick={() => setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { themeId: s.themeId || undefined, newThemeName: s.themeId ? undefined : s.label, label: s.label } }))}
-                                                                                            title={s.reasoning}
-                                                                                            className={`text-left px-2 py-1 rounded border text-[10px] font-semibold transition-colors ${rowSel?.label === s.label ? 'ring-1 ring-indigo-400' : ''} ${s.isExisting ? 'bg-teal-50 text-teal-700 border-teal-100 hover:bg-teal-100' : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'}`}
-                                                                                        >
-                                                                                            <span className="text-[8px] font-extrabold uppercase opacity-50 mr-1">{s.isExisting ? 'existing' : 'new'}</span>
-                                                                                            {s.label}
-                                                                                        </button>
-                                                                                    ))}
-                                                                                    {/* Custom input */}
-                                                                                    <input
-                                                                                        type="text"
-                                                                                        placeholder="Or type custom theme..."
-                                                                                        onKeyDown={e => {
-                                                                                            if (e.key === 'Enter') {
-                                                                                                const val = (e.target as HTMLInputElement).value.trim();
-                                                                                                if (val) setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { newThemeName: val, label: val } }));
-                                                                                                (e.target as HTMLInputElement).value = '';
-                                                                                            }
-                                                                                        }}
-                                                                                        className="mt-0.5 px-2 py-0.5 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-300 text-slate-600"
-                                                                                    />
-                                                                                </div>
-                                                                            )}
-                                                                            {/* Trigger button */}
-                                                                            {!suggestions && (
-                                                                                <button
-                                                                                    onClick={() => handleSuggestThemes(row)}
-                                                                                    disabled={isLoading}
-                                                                                    className="inline-flex items-center gap-1 px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-600 text-[10px] font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                                                                                >
-                                                                                    {isLoading ? (
-                                                                                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                                                                    ) : (
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m17 2 5 5-5 5"/></svg>
-                                                                                    )}
-                                                                                    {isLoading ? 'Thinking...' : '✦ Suggest Theme'}
-                                                                                </button>
-                                                                            )}
+                                                                            <select
+                                                                                value={rowSel?.themeId || ''}
+                                                                                onChange={e => {
+                                                                                    const val = e.target.value;
+                                                                                    if (!val) {
+                                                                                        setRowThemeSelections(prev => { const n = {...prev}; delete n[row.segmentId]; return n; });
+                                                                                    } else {
+                                                                                        const t = themes.find(t => t.id === val);
+                                                                                        setRowThemeSelections(prev => ({ ...prev, [row.segmentId]: { themeId: val, label: t?.name || val } }));
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full text-[10px] border border-slate-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-300 text-slate-600 bg-white"
+                                                                            >
+                                                                                <option value="">— Select theme —</option>
+                                                                                {subThemes.sort((a,b)=>a.name.localeCompare(b.name)).map(t => (
+                                                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                                                ))}
+                                                                            </select>
                                                                         </div>
                                                                     )
                                                                 })()}
-                                                                {/* Mega Theme — on-demand AI button */}
+                                                                {/* Mega Theme — dropdown from DB */}
                                                                 {row.suggestion.status !== 'REJECTED' && (() => {
                                                                     const rowSel = rowMegaThemeSelections[row.segmentId];
-                                                                    const suggestions = rowMegaThemeSuggestions[row.segmentId];
-                                                                    const isLoading = rowMegaThemeSuggestingLoading[row.segmentId];
-                                                                    
-                                                                    // Only show if a theme is selected or assigned
                                                                     const themeSel = rowThemeSelections[row.segmentId];
                                                                     const assignedThemes = (row.suggestion as any).assignedThemes as { id: string; name: string }[] | undefined;
                                                                     const hasTheme = themeSel?.label || (assignedThemes && assignedThemes.length > 0);
-                                                                    
                                                                     if (!hasTheme) return null;
 
+                                                                    // Mega-themes = themes that have children (isMeta or children.length > 0)
+                                                                    const megaThemes = themes.filter(t => t.isMeta || (t.children && t.children.length > 0));
                                                                     return (
                                                                         <div className="flex flex-col gap-1 w-full pt-1.5 border-t border-slate-100 mt-0.5">
                                                                             <div className="flex items-center justify-between">
                                                                                 <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Mega Theme</span>
                                                                                 {rowSel?.label && (
                                                                                     <button
-                                                                                        onClick={() => { setRowMegaThemeSelections(prev => { const n = {...prev}; delete n[row.segmentId]; return n; }); setRowMegaThemeSuggestions(prev => { const n = {...prev}; delete n[row.segmentId]; return n; }); }}
+                                                                                        onClick={() => setRowMegaThemeSelections(prev => { const n = {...prev}; delete n[row.segmentId]; return n; })}
                                                                                         className="text-[8px] text-slate-300 hover:text-rose-400 transition-colors"
                                                                                     >✕ clear</button>
                                                                                 )}
                                                                             </div>
-                                                                            {/* Selected mega theme chip */}
-                                                                            {rowSel?.label && (
-                                                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${rowSel.themeId ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                                                                                    {rowSel.themeId ? '✓' : '+'} {rowSel.label}
-                                                                                </span>
-                                                                            )}
-                                                                            {/* Suggestions list */}
-                                                                            {suggestions && suggestions.length > 0 && (
-                                                                                <div className="flex flex-col gap-0.5">
-                                                                                    {suggestions.map((s, si) => (
-                                                                                        <button
-                                                                                            key={si}
-                                                                                            onClick={() => setRowMegaThemeSelections(prev => ({ ...prev, [row.segmentId]: { themeId: s.themeId || undefined, newThemeName: s.themeId ? undefined : s.label, label: s.label } }))}
-                                                                                            title={s.reasoning}
-                                                                                            className={`text-left px-2 py-1 rounded border text-[10px] font-semibold transition-colors ${rowSel?.label === s.label ? 'ring-1 ring-fuchsia-400' : ''} ${s.isExisting ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-100 hover:bg-fuchsia-100' : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'}`}
-                                                                                        >
-                                                                                            <span className="text-[8px] font-extrabold uppercase opacity-50 mr-1">{s.isExisting ? 'existing' : 'new'}</span>
-                                                                                            {s.label}
-                                                                                        </button>
-                                                                                    ))}
-                                                                                    {/* Custom input */}
-                                                                                    <input
-                                                                                        type="text"
-                                                                                        placeholder="Or type custom mega theme..."
-                                                                                        onKeyDown={e => {
-                                                                                            if (e.key === 'Enter') {
-                                                                                                const val = (e.target as HTMLInputElement).value.trim();
-                                                                                                if (val) setRowMegaThemeSelections(prev => ({ ...prev, [row.segmentId]: { newThemeName: val, label: val } }));
-                                                                                                (e.target as HTMLInputElement).value = '';
-                                                                                            }
-                                                                                        }}
-                                                                                        className="mt-0.5 px-2 py-0.5 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-fuchsia-300 text-slate-600"
-                                                                                    />
-                                                                                </div>
-                                                                            )}
-                                                                            {/* Trigger button */}
-                                                                            {!suggestions && (
-                                                                                <button
-                                                                                    onClick={() => handleSuggestMegaThemes(row)}
-                                                                                    disabled={isLoading}
-                                                                                    className="inline-flex items-center gap-1 px-2 py-1 rounded border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-600 text-[10px] font-bold hover:bg-fuchsia-100 transition-colors disabled:opacity-50"
-                                                                                >
-                                                                                    {isLoading ? (
-                                                                                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                                                                    ) : (
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m17 2 5 5-5 5"/></svg>
-                                                                                    )}
-                                                                                    {isLoading ? 'Thinking...' : '✦ Suggest Mega Theme'}
-                                                                                </button>
-                                                                            )}
+                                                                            <select
+                                                                                value={rowSel?.themeId || ''}
+                                                                                onChange={e => {
+                                                                                    const val = e.target.value;
+                                                                                    if (!val) {
+                                                                                        setRowMegaThemeSelections(prev => { const n = {...prev}; delete n[row.segmentId]; return n; });
+                                                                                    } else {
+                                                                                        const t = themes.find(t => t.id === val);
+                                                                                        setRowMegaThemeSelections(prev => ({ ...prev, [row.segmentId]: { themeId: val, label: t?.name || val } }));
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full text-[10px] border border-fuchsia-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-fuchsia-300 text-slate-600 bg-white"
+                                                                            >
+                                                                                <option value="">— Select mega theme —</option>
+                                                                                {megaThemes.sort((a,b)=>a.name.localeCompare(b.name)).map(t => (
+                                                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                                                ))}
+                                                                            </select>
                                                                         </div>
                                                                     )
                                                                 })()}
