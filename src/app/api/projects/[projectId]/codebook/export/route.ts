@@ -26,7 +26,9 @@ export async function GET(
                                 codeAssignments: {
                                     where: {
                                         segment: {
-                                            transcript: { projectId: params.projectId }
+                                            transcript: {
+                                                dataset: { projectId: params.projectId }
+                                            }
                                         }
                                     },
                                     select: {
