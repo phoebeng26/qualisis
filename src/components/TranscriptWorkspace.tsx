@@ -821,6 +821,28 @@ export default function TranscriptWorkspace({
                             Export
                         </button>
 
+                        {/* Right Sidebar Toggle */}
+                        <button 
+                            onClick={() => setIsRightBarCollapsed(!isRightBarCollapsed)}
+                            className="w-[38px] h-[38px] flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 transition-colors shadow-sm bg-white"
+                            title={isRightBarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                        >
+                            {isRightBarCollapsed ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/><path d="m10 15-3-3 3-3"/></svg>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/><path d="m8 9 3 3-3 3"/></svg>
+                            )}
+                        </button>
+
+                        {/* Sticky Note Toggle */}
+                        <button 
+                            onClick={() => setShowSticky(!showSticky)}
+                            className={`w-[38px] h-[38px] flex items-center justify-center rounded-lg border text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors shadow-sm ${showSticky ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-white border-slate-200'}`}
+                            title="Sticky Notes"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg>
+                        </button>
+
                         {/* Analysis Dropdown Button */}
                         <div className="relative">
                             <div className={`flex items-center rounded-lg shadow-sm transition-all border border-transparent ${
@@ -856,28 +878,6 @@ export default function TranscriptWorkspace({
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                                 </button>
                             </div>
-
-                            {/* Right Sidebar Toggle */}
-                            <button 
-                                onClick={() => setIsRightBarCollapsed(!isRightBarCollapsed)}
-                                className="ml-1 w-[38px] h-[38px] flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 transition-colors shadow-sm bg-white"
-                                title={isRightBarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                            >
-                                {isRightBarCollapsed ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/><path d="m10 15-3-3 3-3"/></svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/><path d="m8 9 3 3-3 3"/></svg>
-                                )}
-                            </button>
-
-                            {/* Sticky Note Toggle */}
-                            <button 
-                                onClick={() => setShowSticky(!showSticky)}
-                                className={`ml-1 w-[38px] h-[38px] flex items-center justify-center rounded-lg border text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors shadow-sm ${showSticky ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-white border-slate-200'}`}
-                                title="Sticky Notes"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg>
-                            </button>
 
                             {/* Dropdown Menu */}
                             {showModelPicker && (
